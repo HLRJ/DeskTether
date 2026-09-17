@@ -1,6 +1,6 @@
 # DeskTether Secure MCP Tunnel
 
-This guide connects the local DeskTether V0.2.1 stdio MCP server to supported ChatGPT custom MCP apps through OpenAI Secure MCP Tunnel.
+This guide connects the local DeskTether V0.2.2 stdio MCP server to supported ChatGPT custom MCP apps through OpenAI Secure MCP Tunnel.
 
 ## Architecture
 
@@ -116,7 +116,7 @@ In another terminal, inspect local runtime health:
 pnpm tunnel:status
 ```
 
-V0.2.1 runs the tunnel-client health listener on an ephemeral loopback port and stores only the PID plus resolved health URL under ignored `.tools/tunnel-state/` files. The status command is read-only and does not print the runtime API key.
+DeskTether runs the tunnel-client health listener on an ephemeral loopback port and stores only the PID plus resolved health URL under ignored `.tools/tunnel-state/` files. The status command is read-only and does not print the runtime API key.
 ## 6. Attach in ChatGPT Web
 
 In an eligible ChatGPT workspace, enable developer mode and create a custom MCP app from the Apps settings. Choose the Secure MCP Tunnel you created, scan the tool catalog, and verify the five PowerShell actions appear:

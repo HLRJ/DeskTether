@@ -6,6 +6,11 @@ const expectedTools = [
   "list_directory",
   "read_text_file",
   "write_text_file",
+  "read_multiple_files",
+  "create_directory",
+  "move_file",
+  "get_file_info",
+  "edit_block",
   "start_process",
   "read_process_output",
   "write_process_input",
@@ -21,12 +26,13 @@ const expectedTools = [
   "start_search",
   "get_search_results",
   "stop_search",
+  "list_searches",
   "git_status",
   "git_diff",
   "git_log",
 ];
 describe("DeskTether MCP tool catalog", () => {
-  it("registers the stable V0.2 tool surface exactly once", () => {
+  it("registers the V0.2.2 tool surface exactly once", () => {
     const definitions = getToolDefinitions();
     expect(definitions.map((tool) => tool.name).sort()).toEqual([...expectedTools].sort());
     expect(new Set(definitions.map((tool) => tool.name)).size).toBe(expectedTools.length);

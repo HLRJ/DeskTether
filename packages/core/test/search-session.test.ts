@@ -35,4 +35,31 @@ describe("SearchSessionManager", () => {
     manager.cancel(session.id);
     expect(manager.read(session.id).status).toBe("cancelled");
   });
+
+  it("lists search session metadata", async () => {
+    const { root, manager } = await fixture();
+    const first = manager.start({ root, pattern: "notes", mode: "files" });
+    const second = manager.start({ root, pattern: "needle", mode: "content" });
+    await waitForDone(manager, first.id);
+    await waitForDone(manager, second.id);
+
+    expect(manager.list()).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: first.id,
+        root: path.resolve(root),
+        pattern: "notes",
+        mode: "files",
+        status: "completed",
+        total: 1,
+      }),
+      expect.objectContaining({
+        id: second.id,
+        root: path.resolve(root),
+        pattern: "needle",
+        mode: "content",
+        status: "completed",
+        total: 1,
+      }),
+    ]));
+  });
 });

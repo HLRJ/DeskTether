@@ -27,6 +27,42 @@ export function getToolDefinitions(): ToolDefinition[] {
       inputSchema: z.object({ path: z.string().min(1), content: z.string() }),
     },
     {
+      name: "read_multiple_files",
+      description: "Read multiple UTF-8 text files after validating every path.",
+      inputSchema: z.object({
+        paths: z.array(z.string().min(1)).min(1).max(100),
+      }),
+    },
+    {
+      name: "create_directory",
+      description: "Create a directory recursively inside allowed roots.",
+      inputSchema: pathOnly,
+    },
+    {
+      name: "move_file",
+      description: "Move a file inside allowed roots. Overwrite is disabled by default.",
+      inputSchema: z.object({
+        source: z.string().min(1),
+        destination: z.string().min(1),
+        overwrite: z.boolean().optional(),
+      }),
+    },
+    {
+      name: "get_file_info",
+      description: "Get file or directory metadata inside allowed roots.",
+      inputSchema: pathOnly,
+    },
+    {
+      name: "edit_block",
+      description: "Replace an exact text block only when the expected match count is met.",
+      inputSchema: z.object({
+        path: z.string().min(1),
+        oldText: z.string().min(1),
+        newText: z.string(),
+        expectedReplacements: z.number().int().positive().max(1000).optional(),
+      }),
+    },
+    {
       name: "start_process",
       description: "Start a command as a managed process session.",
       inputSchema: z.object({
@@ -86,6 +122,7 @@ export function getToolDefinitions(): ToolDefinition[] {
       }),
     },
     { name: "stop_search", description: "Cancel a search session.", inputSchema: sessionOnly },
+    { name: "list_searches", description: "List active and completed search sessions.", inputSchema: noArgs },
     { name: "git_status", description: "Show concise Git working-tree status.", inputSchema: cwdOnly },
     { name: "git_diff", description: "Show the unstaged Git diff.", inputSchema: cwdOnly },
     {
