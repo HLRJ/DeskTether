@@ -44,3 +44,28 @@ try {
 }
 
 Write-Host 'Tunnel module tests passed.'
+$scriptNames = @('Install-TunnelClient.ps1', 'Connect-DeskTetherTunnel.ps1')
+foreach ($scriptName in $scriptNames) {
+    $scriptPath = Join-Path $PSScriptRoot $scriptName
+    if (-not (Test-Path -LiteralPath $scriptPath)) {
+        throw "Required tunnel script is missing: $scriptName"
+    }
+
+    $tokens = $null
+    $parseErrors = $null
+    [System.Management.Automation.Language.Parser]::ParseFile(
+        $scriptPath,
+        [ref]$tokens,
+        [ref]$parseErrors
+    ) | Out-Null
+    if ($parseErrors.Count -gt 0) {
+        throw "PowerShell syntax errors in ${scriptName}: $($parseErrors[0].Message)"
+    }
+
+    $source = Get-Content -LiteralPath $scriptPath -Raw
+    if ($source -match 'sk-[A-Za-z0-9_-]{20,}') {
+        throw "Possible hard-coded OpenAI key found in $scriptName"
+    }
+}
+
+Write-Host 'Tunnel script tests passed.'

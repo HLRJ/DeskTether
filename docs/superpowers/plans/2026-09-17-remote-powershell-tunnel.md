@@ -66,12 +66,12 @@
 - Installer downloads the exact v0.0.14 Windows amd64 archive and `SHA256SUMS.txt`, verifies the archive, then extracts under `.tools/tunnel-client/v0.0.14/`.
 - Connector builds DeskTether, initializes a user-local tunnel-client profile using `node <repo>/apps/mcp-server/dist/index.js`, runs `doctor --explain`, and only then starts `tunnel-client run`.
 
-- [ ] **Step 1: Extend the PowerShell test script** to syntax-parse both scripts and assert the repository never stores a runtime key literal.
-- [ ] **Step 2: Run tests RED** because the scripts do not exist.
-- [ ] **Step 3: Implement installer and connector**, sourcing shared helpers from `DeskTether.Tunnel.psm1`.
-- [ ] **Step 4: Run `pnpm test:tunnel` GREEN**, then execute the installer on this Windows machine and verify `tunnel-client --version` reports `0.0.14`.
-- [ ] **Step 5: Run connector preflight without credentials** and verify it fails safely before tunnel startup with names of missing variables only.
-- [ ] **Step 6: Commit** `feat: add secure tunnel installer and connector`.
+- [x] **Step 1: Extend the PowerShell test script** to syntax-parse both scripts and assert the repository never stores a runtime key literal.
+- [x] **Step 2: Run tests RED** because the scripts do not exist.
+- [x] **Step 3: Implement installer and connector**, sourcing shared helpers from `DeskTether.Tunnel.psm1`.
+- [x] **Step 4: Run `pnpm test:tunnel` GREEN**, then execute the installer on this Windows machine and verify `tunnel-client --version` reports `0.0.14`.
+- [x] **Step 5: Run connector preflight without credentials** and verify it fails safely before tunnel startup with names of missing variables only.
+- [x] **Step 6: Commit** `feat: add secure tunnel installer and connector`.
 
 ### Task 4: Documentation and release verification
 
