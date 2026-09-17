@@ -2,9 +2,9 @@
 
 **Securely connect AI agents to your local machine.**
 
-DeskTether is an open-source, Windows-first MCP bridge that exposes carefully scoped local-computer capabilities to AI clients. V0.2.1 hardens the V0.2 PowerShell and Secure MCP Tunnel path with three-state command policy, one-time confirmations, richer process sessions, safer audit metadata, and tunnel health/status UX.
+DeskTether is an open-source, Windows-first MCP bridge that exposes carefully scoped local-computer capabilities to AI clients. V0.2.2 builds on the V0.2.1 PowerShell and tunnel hardening with a more complete local filesystem and search-session tool surface.
 
-> **Status:** V0.2.1 development release. Local MCP runs over stdio, and the included Windows scripts can attach that stdio server to OpenAI Secure MCP Tunnel without exposing a public inbound port. Final ChatGPT Web write-action use still depends on workspace eligibility.
+> **Status:** V0.2.2 development release. Local MCP runs over stdio, and the included Windows scripts can attach that stdio server to OpenAI Secure MCP Tunnel without exposing a public inbound port. Final ChatGPT Web write-action use still depends on workspace eligibility.
 
 ## Why DeskTether
 
@@ -31,11 +31,11 @@ DeskTether MCP Server
 - Three-state command policy: `ALLOW`, `CONFIRM`, and `DENY`
 - One-time confirmation tokens bound to command + working directory
 - Persistent JSONL audit log with confirmation/session metadata and token redaction
-- Text file read/write and directory listing
+- Text file read/write, multi-file reads, recursive directory creation, metadata inspection, safe file moves, and exact block editing
 - Long-running terminal sessions with bounded stdout/stderr buffers, offsets, stdin, PID, timing, and exit code
 - Explicit PowerShell start/read/input/list/terminate tools
 - System process listing and PID termination
-- Cancellable, paged file/content search sessions
+- Cancellable, paged file/content search sessions with session listing
 - Read-only Git `status`, `diff`, and `log`
 - Device/runtime information
 - MCP TypeScript SDK v2 over stdio
@@ -46,11 +46,11 @@ DeskTether MCP Server
 | Group | Tools |
 |---|---|
 | Device | `device_info` |
-| Files | `list_directory`, `read_text_file`, `write_text_file` |
+| Files | `list_directory`, `read_text_file`, `read_multiple_files`, `write_text_file`, `create_directory`, `move_file`, `get_file_info`, `edit_block` |
 | Terminal | `start_process`, `read_process_output`, `write_process_input`, `terminate_process`, `list_sessions` |
 | PowerShell | `powershell_start`, `powershell_read`, `powershell_input`, `powershell_terminate`, `powershell_list` |
 | Processes | `list_processes`, `kill_process` |
-| Search | `start_search`, `get_search_results`, `stop_search` |
+| Search | `start_search`, `get_search_results`, `stop_search`, `list_searches` |
 | Git | `git_status`, `git_diff`, `git_log` |
 
 ## Requirements
@@ -93,7 +93,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\scripts\tunnel\Install-TunnelClient.ps1
 ```
 
-After creating the OpenAI tunnel and runtime key, set `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY`, then use the V0.2.1 tunnel commands:
+After creating the OpenAI tunnel and runtime key, set `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY`, then use the tunnel commands:
 
 ```powershell
 pnpm tunnel:doctor
@@ -153,6 +153,7 @@ Core capabilities live in `packages/core`. The MCP transport adapter lives in `a
 - **V0.1** — filesystem, policy, audit, terminal/process sessions, streaming search, Git inspection, stdio MCP
 - **V0.2** — explicit PowerShell tools + OpenAI Secure MCP Tunnel bootstrap
 - **V0.2.1** — three-state permission engine, one-time confirmation, bounded session streaming, richer audit, tunnel doctor/start/status
+- **V0.2.2** — multi-file reads, directory creation, file move/info, exact block editing, search-session listing
 - **V0.3** — Chrome DevTools / browser automation adapter
 - **V0.4** — Windows screenshots, window discovery, keyboard/mouse and UI Automation
 - **V0.5** — multi-device pairing, stronger permission profiles, local approval UX

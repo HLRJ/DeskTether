@@ -22,10 +22,25 @@ export interface SearchOptions {
 
 interface SearchSession {
   id: string;
+  root: string;
+  pattern: string;
+  mode: SearchMode;
+  createdAt: string;
   status: SearchStatus;
   results: SearchResult[];
   error?: string;
   cancelled: boolean;
+}
+
+export interface SearchSessionSummary {
+  id: string;
+  root: string;
+  pattern: string;
+  mode: SearchMode;
+  createdAt: string;
+  status: SearchStatus;
+  total: number;
+  error?: string;
 }
 
 export interface SearchPage {
@@ -48,6 +63,10 @@ export class SearchSessionManager {
     const root = this.policy.assertPath(options.root);
     const session: SearchSession = {
       id: randomUUID(),
+      root,
+      pattern: options.pattern,
+      mode: options.mode,
+      createdAt: new Date().toISOString(),
       status: "running",
       results: [],
       cancelled: false,
@@ -78,6 +97,19 @@ export class SearchSessionManager {
     const session = this.requireSession(id);
     session.cancelled = true;
     if (session.status === "running") session.status = "cancelled";
+  }
+
+  list(): SearchSessionSummary[] {
+    return [...this.sessions.values()].map((session) => ({
+      id: session.id,
+      root: session.root,
+      pattern: session.pattern,
+      mode: session.mode,
+      createdAt: session.createdAt,
+      status: session.status,
+      total: session.results.length,
+      error: session.error,
+    }));
   }
 
   private async scan(session: SearchSession, options: Required<SearchOptions>): Promise<void> {

@@ -77,6 +77,27 @@ async function dispatch(runtime: DeskTetherRuntime, name: string, args: Record<s
     case "write_text_file":
       await runtime.filesystem.writeText(String(args.path), String(args.content));
       return { ok: true };
+    case "read_multiple_files":
+      return runtime.filesystem.readMultiple((args.paths as unknown[]).map(String));
+    case "create_directory":
+      await runtime.filesystem.createDirectory(String(args.path));
+      return { ok: true };
+    case "move_file":
+      await runtime.filesystem.move(
+        String(args.source),
+        String(args.destination),
+        args.overwrite === true,
+      );
+      return { ok: true };
+    case "get_file_info":
+      return runtime.filesystem.getInfo(String(args.path));
+    case "edit_block":
+      return runtime.filesystem.editBlock(
+        String(args.path),
+        String(args.oldText),
+        String(args.newText),
+        args.expectedReplacements === undefined ? 1 : Number(args.expectedReplacements),
+      );
     case "start_process":
     case "powershell_start":
       return runtime.processes.start(
@@ -122,6 +143,8 @@ async function dispatch(runtime: DeskTetherRuntime, name: string, args: Record<s
     case "stop_search":
       runtime.searches.cancel(String(args.sessionId));
       return { ok: true };
+    case "list_searches":
+      return runtime.searches.list();
     case "git_status":
       return gitStatus(String(args.cwd), runtime.policy);
     case "git_diff":
