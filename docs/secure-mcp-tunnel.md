@@ -40,7 +40,6 @@ As of 2026-09-17, full custom MCP support with write/modify actions is available
 ## 1. Build DeskTether
 
 ```powershell
-cd G:\Codes\DeskTether
 pnpm install
 pnpm test
 pnpm test:tunnel
@@ -61,7 +60,7 @@ The installer downloads the matching Windows amd64 archive and `SHA256SUMS.txt`,
 To use an independently installed binary instead:
 
 ```powershell
-$env:TUNNEL_CLIENT_BIN="C:\Tools\tunnel-client\tunnel-client.exe"
+$env:TUNNEL_CLIENT_BIN="<path-to-tunnel-client.exe>"
 ```
 
 ## 3. Create OpenAI tunnel credentials
@@ -81,7 +80,7 @@ Set the values only in your local shell or another secret manager:
 ```powershell
 $env:CONTROL_PLANE_TUNNEL_ID="tunnel_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 $env:CONTROL_PLANE_API_KEY="<runtime-api-key>"
-$env:DESKTETHER_ALLOWED_ROOTS="G:\Codes"
+$env:DESKTETHER_ALLOWED_ROOTS=(Get-Location).Path
 ```
 
 `CONTROL_PLANE_TUNNEL_ID` identifies the tunnel. `CONTROL_PLANE_API_KEY` is the runtime credential used by `doctor` and `run`; DeskTether never writes its value into the repository or generated MCP command.
@@ -128,7 +127,7 @@ Write/modify actions may require confirmation in ChatGPT depending on workspace 
 A useful first test prompt is:
 
 ```text
-Use DeskTether to start PowerShell in G:\Codes\DeskTether and run:
+Use DeskTether to start PowerShell in the current DeskTether repository directory and run:
 Get-Location
 Then read the session output.
 ```

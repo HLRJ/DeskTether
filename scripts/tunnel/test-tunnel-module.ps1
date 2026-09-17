@@ -20,7 +20,8 @@ Assert-Equal $release.ArchiveName 'tunnel-client-v0.0.14-windows-amd64.zip' 'Wro
 Assert-Contains $release.ArchiveUrl '/releases/download/v0.0.14/' 'Archive URL is not version-pinned'
 Assert-Contains $release.ChecksumUrl '/releases/download/v0.0.14/SHA256SUMS.txt' 'Checksum URL is not version-pinned'
 
-$command = Get-DeskTetherMcpCommand -ProjectRoot 'G:\Codes\DeskTether'
+$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$command = Get-DeskTetherMcpCommand -ProjectRoot $projectRoot
 Assert-Contains $command 'node' 'MCP launch command must use Node'
 Assert-Contains $command 'apps\mcp-server\dist\index.js' 'MCP launch command points to wrong entrypoint'
 

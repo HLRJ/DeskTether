@@ -36,6 +36,6 @@ describe("DeskTether MCP tool catalog", () => {
     const readTool = getToolDefinitions().find((tool) => tool.name === "read_text_file");
     expect(readTool).toBeDefined();
     expect(readTool?.inputSchema.safeParse({}).success).toBe(false);
-    expect(readTool?.inputSchema.safeParse({ path: "G:\\Codes" }).success).toBe(true);
+    expect(readTool?.inputSchema.safeParse({ path: "example.txt" }).success).toBe(true);
   });
 });

@@ -63,7 +63,8 @@ DeskTether MCP Server
 ```powershell
 git clone https://github.com/HLRJ/DeskTether.git
 cd DeskTether
-pnpm installpnpm test
+pnpm install
+pnpm test
 pnpm test:tunnel
 pnpm build
 ```
@@ -71,7 +72,7 @@ pnpm build
 Set the folders DeskTether is allowed to access before starting it:
 
 ```powershell
-$env:DESKTETHER_ALLOWED_ROOTS="G:\Codes"
+$env:DESKTETHER_ALLOWED_ROOTS=(Get-Location).Path
 $env:DESKTETHER_BLOCKED_COMMANDS="format,diskpart,shutdown,shutdown.exe,restart-computer"
 pnpm mcp
 ```
@@ -114,7 +115,9 @@ See [`docs/secure-mcp-tunnel.md`](docs/secure-mcp-tunnel.md) for the complete se
 Example for multiple roots on Windows:
 
 ```powershell
-$env:DESKTETHER_ALLOWED_ROOTS="G:\Codes;G:\AINmg"
+$root1 = (Resolve-Path .).Path
+$root2 = (Resolve-Path ..\another-project).Path
+$env:DESKTETHER_ALLOWED_ROOTS="$root1;$root2"
 ```
 
 ## Security model
