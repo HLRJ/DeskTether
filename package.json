@@ -1,10 +1,12 @@
 {
   "name": "desktether",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.10.0",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "test": "pnpm -r test",
     "test:tunnel": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tunnel/test-tunnel-module.ps1",
