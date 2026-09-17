@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 
 export type CommandDecision = "ALLOW" | "CONFIRM" | "DENY";
@@ -38,6 +39,35 @@ function matchesAllowRule(command: string, rule: string): boolean {
   return !/[;&|><`\r\n]/.test(suffix) && !suffix.includes("$(");
 }
 
+function canonicalizePath(candidate: string): string {
+  const resolved = path.resolve(candidate);
+  let current = resolved;
+  const missingSegments: string[] = [];
+
+  while (true) {
+    try {
+      const real = fs.realpathSync.native(current);
+      return path.resolve(real, ...missingSegments);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT" && code !== "ENOTDIR") throw error;
+
+      const parent = path.dirname(current);
+      if (parent === current) return resolved;
+      missingSegments.unshift(path.basename(current));
+      current = parent;
+    }
+  }
+}
+
+function isInside(root: string, candidate: string): boolean {
+  const relative = path.relative(root, candidate);
+  return relative === ""
+    || (!path.isAbsolute(relative)
+      && relative !== ".."
+      && !relative.startsWith(`..${path.sep}`));
+}
+
 export class Policy {
   private readonly allowedRoots: string[];
   private readonly denyCommands: string[];
@@ -45,7 +75,7 @@ export class Policy {
   private readonly allowCommands: string[];
 
   constructor(options: PolicyOptions) {
-    this.allowedRoots = options.allowedRoots.map((root) => path.resolve(root));
+    this.allowedRoots = options.allowedRoots.map((root) => canonicalizePath(root));
     this.denyCommands = normalizeRules([
       ...options.blockedCommands,
       ...(options.denyCommands ?? []),
@@ -56,10 +86,14 @@ export class Policy {
 
   assertPath(candidate: string): string {
     const resolved = path.resolve(candidate);
-    const allowed = this.allowedRoots.some((root) => {
-      const relative = path.relative(root, resolved);
-      return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
-    });
+    let canonical: string;
+    try {
+      canonical = canonicalizePath(resolved);
+    } catch {
+      throw new PolicyError(`Path could not be safely resolved: ${resolved}`);
+    }
+
+    const allowed = this.allowedRoots.some((root) => isInside(root, canonical));
     if (!allowed) throw new PolicyError(`Path is outside allowed roots: ${resolved}`);
     return resolved;
   }

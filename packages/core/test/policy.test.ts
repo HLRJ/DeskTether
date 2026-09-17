@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { Policy, PolicyError } from "../src/policy.js";
 
@@ -13,6 +15,22 @@ describe("Policy", () => {
   it("rejects paths outside every allowed root", () => {
     const policy = new Policy({ allowedRoots: [root], blockedCommands: [] });
     expect(() => policy.assertPath(path.resolve("outside"))).toThrow(PolicyError);
+  });
+
+  it("accepts valid child names that begin with two dots", () => {
+    const policy = new Policy({ allowedRoots: [root], blockedCommands: [] });
+    expect(policy.assertPath(path.join(root, "..cache", "file.txt")))
+      .toBe(path.resolve(root, "..cache", "file.txt"));
+  });
+
+  it("rejects symlink or junction traversal outside an allowed root", async () => {
+    const allowed = await fs.mkdtemp(path.join(os.tmpdir(), "desktether-policy-allowed-"));
+    const outside = await fs.mkdtemp(path.join(os.tmpdir(), "desktether-policy-outside-"));
+    const link = path.join(allowed, "escape");
+    await fs.symlink(outside, link, process.platform === "win32" ? "junction" : "dir");
+
+    const policy = new Policy({ allowedRoots: [allowed], blockedCommands: [] });
+    expect(() => policy.assertPath(path.join(link, "secret.txt"))).toThrow(PolicyError);
   });
 
   it("maps legacy blockedCommands to DENY", () => {

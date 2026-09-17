@@ -19,12 +19,32 @@ const cwdOnly = z.object({ cwd: z.string().min(1) });
 export function getToolDefinitions(): ToolDefinition[] {
   return [
     { name: "device_info", description: "Get local device and runtime information.", inputSchema: noArgs },
-    { name: "list_directory", description: "List entries in an allowed local directory.", inputSchema: pathOnly },
-    { name: "read_text_file", description: "Read a UTF-8 text file inside allowed roots.", inputSchema: pathOnly },
+    {
+      name: "list_directory",
+      description: "List an allowed directory, optionally recursively with depth and entry limits.",
+      inputSchema: z.object({
+        path: z.string().min(1),
+        depth: z.number().int().min(1).max(20).optional(),
+        maxEntries: z.number().int().min(1).max(5000).optional(),
+      }),
+    },
+    {
+      name: "read_text_file",
+      description: "Read a UTF-8 text file, optionally by byte offset/length for large files.",
+      inputSchema: z.object({
+        path: z.string().min(1),
+        offset: z.number().int().optional(),
+        length: z.number().int().positive().max(1024 * 1024).optional(),
+      }),
+    },
     {
       name: "write_text_file",
-      description: "Rewrite a UTF-8 text file inside allowed roots.",
-      inputSchema: z.object({ path: z.string().min(1), content: z.string() }),
+      description: "Rewrite or append to a UTF-8 text file inside allowed roots.",
+      inputSchema: z.object({
+        path: z.string().min(1),
+        content: z.string(),
+        mode: z.enum(["rewrite", "append"]).optional(),
+      }),
     },
     {
       name: "read_multiple_files",
@@ -40,7 +60,7 @@ export function getToolDefinitions(): ToolDefinition[] {
     },
     {
       name: "move_file",
-      description: "Move a file inside allowed roots. Overwrite is disabled by default.",
+      description: "Move a file or directory inside allowed roots. Overwrite is disabled by default.",
       inputSchema: z.object({
         source: z.string().min(1),
         destination: z.string().min(1),
@@ -104,12 +124,15 @@ export function getToolDefinitions(): ToolDefinition[] {
     },
     {
       name: "start_search",
-      description: "Start a cancellable file-name or text-content search.",
+      description: "Start a cancellable file-name, text-content, or regex search.",
       inputSchema: z.object({
         root: z.string().min(1),
         pattern: z.string().min(1),
-        mode: z.enum(["files", "content"]),
+        mode: z.enum(["files", "content", "regex"]),
         maxResults: z.number().int().positive().max(10000).optional(),
+        include: z.array(z.string().min(1)).max(100).optional(),
+        exclude: z.array(z.string().min(1)).max(100).optional(),
+        caseSensitive: z.boolean().optional(),
       }),
     },
     {
@@ -123,6 +146,25 @@ export function getToolDefinitions(): ToolDefinition[] {
     },
     { name: "stop_search", description: "Cancel a search session.", inputSchema: sessionOnly },
     { name: "list_searches", description: "List active and completed search sessions.", inputSchema: noArgs },
+    {
+      name: "search_code",
+      description: "Start a regex code search with optional include/exclude glob filters.",
+      inputSchema: z.object({
+        root: z.string().min(1),
+        pattern: z.string().min(1),
+        include: z.array(z.string().min(1)).max(100).optional(),
+        exclude: z.array(z.string().min(1)).max(100).optional(),
+        caseSensitive: z.boolean().optional(),
+        maxResults: z.number().int().positive().max(10000).optional(),
+      }),
+    },
+    {
+      name: "get_recent_activity",
+      description: "Read recent local JSONL audit activity, newest first.",
+      inputSchema: z.object({
+        limit: z.number().int().positive().max(1000).optional(),
+      }),
+    },
     { name: "git_status", description: "Show concise Git working-tree status.", inputSchema: cwdOnly },
     { name: "git_diff", description: "Show the unstaged Git diff.", inputSchema: cwdOnly },
     {

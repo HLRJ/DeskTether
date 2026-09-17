@@ -19,7 +19,38 @@ function jsonResult<T>(result: Awaited<ReturnType<typeof executeTool>>): T {
   return JSON.parse(result.content[0]!.text) as T;
 }
 
-describe("V0.2.2 basic MCP tools", () => {
+describe("V0.2.3 foundation MCP tools", () => {
+  it("supports recursive listing, ranged reads, and append writes", async () => {
+    const { root, runtime } = await fixture();
+    await fs.mkdir(path.join(root, "src", "nested"), { recursive: true });
+    await fs.writeFile(path.join(root, "src", "main.ts"), "abcdef", "utf8");
+
+    const listed = await executeTool(runtime, "list_directory", {
+      path: root,
+      depth: 2,
+      maxEntries: 20,
+    });
+    const tree = jsonResult<{ entries: Array<{ relativePath: string }>; truncated: boolean }>(listed);
+    expect(tree.truncated).toBe(false);
+    expect(tree.entries.some((entry) => entry.relativePath.endsWith("main.ts"))).toBe(true);
+
+    const ranged = await executeTool(runtime, "read_text_file", {
+      path: path.join(root, "src", "main.ts"),
+      offset: 2,
+      length: 3,
+    });
+    expect(jsonResult<{ content: string }>(ranged).content).toBe("cde");
+
+    const appendPath = path.join(root, "append.txt");
+    await executeTool(runtime, "write_text_file", { path: appendPath, content: "alpha" });
+    await executeTool(runtime, "write_text_file", {
+      path: appendPath,
+      content: "\nbeta",
+      mode: "append",
+    });
+    expect(await fs.readFile(appendPath, "utf8")).toBe("alpha\nbeta");
+  });
+
   it("reads multiple text files", async () => {
     const { root, runtime } = await fixture();
     const a = path.join(root, "a.txt");
@@ -59,6 +90,47 @@ describe("V0.2.2 basic MCP tools", () => {
     });
     expect(moveResult.isError).toBeUndefined();
     expect(await fs.readFile(destination, "utf8")).toBe("hello DeskTether");
+  });
+
+  it("starts regex code searches with glob filters", async () => {
+    const { root, runtime } = await fixture();
+    await fs.mkdir(path.join(root, "src"), { recursive: true });
+    await fs.writeFile(path.join(root, "src", "main.ts"), "const needle42 = 1;\n", "utf8");
+    await fs.writeFile(path.join(root, "src", "main.js"), "const needle42 = 1;\n", "utf8");
+
+    const started = await executeTool(runtime, "search_code", {
+      root,
+      pattern: "needle\\d+",
+      include: ["**/*.ts"],
+      caseSensitive: true,
+    });
+    const search = jsonResult<{ id: string }>(started);
+
+    let page: { status: string; results: Array<{ path: string }> } = {
+      status: "running",
+      results: [],
+    };
+    for (let index = 0; index < 40 && page.status === "running"; index += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      const read = await executeTool(runtime, "get_search_results", {
+        sessionId: search.id,
+        offset: 0,
+        length: 10,
+      });
+      page = jsonResult<typeof page>(read);
+    }
+
+    expect(page.status).toBe("completed");
+    expect(page.results).toHaveLength(1);
+    expect(page.results[0]?.path).toMatch(/main\.ts$/);
+  });
+
+  it("returns recent audited tool activity", async () => {
+    const { runtime } = await fixture();
+    await executeTool(runtime, "device_info", {});
+    const recent = await executeTool(runtime, "get_recent_activity", { limit: 10 });
+    const records = jsonResult<Array<{ tool: string }>>(recent);
+    expect(records.some((record) => record.tool === "device_info")).toBe(true);
   });
 
   it("lists active and completed search sessions", async () => {

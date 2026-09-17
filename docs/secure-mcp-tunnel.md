@@ -1,6 +1,6 @@
 # DeskTether Secure MCP Tunnel
 
-This guide connects the local DeskTether V0.2.2 stdio MCP server to supported ChatGPT custom MCP apps through OpenAI Secure MCP Tunnel.
+This guide connects the local DeskTether V0.2.3 stdio MCP server to supported ChatGPT custom MCP apps through OpenAI Secure MCP Tunnel.
 
 ## Architecture
 

@@ -27,12 +27,14 @@ const expectedTools = [
   "get_search_results",
   "stop_search",
   "list_searches",
+  "search_code",
+  "get_recent_activity",
   "git_status",
   "git_diff",
   "git_log",
 ];
 describe("DeskTether MCP tool catalog", () => {
-  it("registers the V0.2.2 tool surface exactly once", () => {
+  it("registers the V0.2.3 tool surface exactly once", () => {
     const definitions = getToolDefinitions();
     expect(definitions.map((tool) => tool.name).sort()).toEqual([...expectedTools].sort());
     expect(new Set(definitions.map((tool) => tool.name)).size).toBe(expectedTools.length);
