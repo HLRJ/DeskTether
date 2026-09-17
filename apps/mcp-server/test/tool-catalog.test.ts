@@ -11,6 +11,11 @@ const expectedTools = [
   "write_process_input",
   "terminate_process",
   "list_sessions",
+  "powershell_start",
+  "powershell_read",
+  "powershell_input",
+  "powershell_terminate",
+  "powershell_list",
   "list_processes",
   "kill_process",
   "start_search",
@@ -20,13 +25,13 @@ const expectedTools = [
   "git_diff",
   "git_log",
 ];
-
 describe("DeskTether MCP tool catalog", () => {
-  it("registers the stable V0.1 tool surface exactly once", () => {
+  it("registers the stable V0.2 tool surface exactly once", () => {
     const definitions = getToolDefinitions();
     expect(definitions.map((tool) => tool.name).sort()).toEqual([...expectedTools].sort());
     expect(new Set(definitions.map((tool) => tool.name)).size).toBe(expectedTools.length);
   });
+
   it("requires a path for file reads", () => {
     const readTool = getToolDefinitions().find((tool) => tool.name === "read_text_file");
     expect(readTool).toBeDefined();

@@ -41,16 +41,21 @@ async function dispatch(runtime: DeskTetherRuntime, name: string, args: Record<s
       await runtime.filesystem.writeText(String(args.path), String(args.content));
       return { ok: true };
     case "start_process":
+    case "powershell_start":
       return runtime.processes.start(String(args.command), String(args.cwd));
     case "read_process_output":
+    case "powershell_read":
       return runtime.processes.read(String(args.sessionId));
     case "write_process_input":
+    case "powershell_input":
       runtime.processes.write(String(args.sessionId), String(args.input));
       return { ok: true };
     case "terminate_process":
+    case "powershell_terminate":
       await runtime.processes.terminate(String(args.sessionId));
       return { ok: true };
     case "list_sessions":
+    case "powershell_list":
       return runtime.processes.list();
     case "list_processes":
       return listProcesses();

@@ -1,4 +1,4 @@
-﻿# DeskTether Remote PowerShell Tunnel Implementation Plan
+# DeskTether Remote PowerShell Tunnel Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -31,11 +31,11 @@
 - Produces tools `powershell_start`, `powershell_read`, `powershell_input`, `powershell_list`, `powershell_terminate`.
 - Each tool delegates to `runtime.processSessions` and therefore inherits Policy and Audit behavior.
 
-- [ ] **Step 1: Write failing catalog and handler tests** that assert all five names exist and that `powershell_start` followed by `powershell_read` returns output from `Write-Output 'desk-tether-ready'`.
-- [ ] **Step 2: Run** `pnpm --filter @desktether/mcp-server test -- powershell-tools.test.ts` and confirm failure because the tools are unknown.
-- [ ] **Step 3: Add minimal schemas and dispatch cases**; do not duplicate process/session logic.
-- [ ] **Step 4: Re-run targeted and full MCP tests** and confirm GREEN.
-- [ ] **Step 5: Commit** `feat: add explicit powershell mcp tools`.
+- [x] **Step 1: Write failing catalog and handler tests** that assert all five names exist and that `powershell_start` followed by `powershell_read` returns output from `Write-Output 'desk-tether-ready'`.
+- [x] **Step 2: Run** `pnpm --filter @desktether/mcp-server test -- powershell-tools.test.ts` and confirm failure because the tools are unknown.
+- [x] **Step 3: Add minimal schemas and dispatch cases**; do not duplicate process/session logic.
+- [x] **Step 4: Re-run targeted and full MCP tests** and confirm GREEN.
+- [x] **Step 5: Commit** `feat: add explicit powershell mcp tools`.
 
 ### Task 2: Tested Windows tunnel bootstrap module
 
