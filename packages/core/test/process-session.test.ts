@@ -23,9 +23,17 @@ async function fixture(policyOptions: {
   return { root, manager: new ProcessSessionManager(policy, new AuditLog(path.join(root, "audit.jsonl"))) };
 }
 
-async function waitUntilExited(manager: ProcessSessionManager, id: string) {
-  for (let i = 0; i < 40 && manager.read(id).status === "running"; i += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 50));
+async function waitUntilExited(
+  manager: ProcessSessionManager,
+  id: string,
+  timeoutMs = 10_000,
+) {
+  const deadline = Date.now() + timeoutMs;
+  while (manager.read(id).status === "running") {
+    if (Date.now() >= deadline) {
+      throw new Error(`Process session did not exit within ${timeoutMs}ms: ${id}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
 }
 
