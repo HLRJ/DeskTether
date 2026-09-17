@@ -49,11 +49,11 @@
 - `Get-DeskTetherMcpCommand -ProjectRoot` returns the compiled stdio MCP launch command.
 - `Assert-DeskTetherTunnelEnvironment` requires `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY` without printing values.
 
-- [ ] **Step 1: Write a PowerShell test script** asserting v0.0.14 asset naming, MCP command path, and missing-secret rejection.
-- [ ] **Step 2: Run** `powershell.exe -NoProfile -File scripts/tunnel/test-tunnel-module.ps1` and confirm RED because the module is absent.
-- [ ] **Step 3: Implement only the tested helper functions** in the module.
-- [ ] **Step 4: Add root script `test:tunnel` and run it GREEN**.
-- [ ] **Step 5: Commit** `feat: add secure tunnel bootstrap helpers`.
+- [x] **Step 1: Write a PowerShell test script** asserting v0.0.14 asset naming, MCP command path, and missing-secret rejection.
+- [x] **Step 2: Run** `powershell.exe -NoProfile -File scripts/tunnel/test-tunnel-module.ps1` and confirm RED because the module is absent.
+- [x] **Step 3: Implement only the tested helper functions** in the module.
+- [x] **Step 4: Add root script `test:tunnel` and run it GREEN**.
+- [x] **Step 5: Commit** `feat: add secure tunnel bootstrap helpers`.
 ### Task 3: Install and connect scripts
 
 **Files:**

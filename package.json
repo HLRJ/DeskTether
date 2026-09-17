@@ -7,6 +7,7 @@
   "engines": { "node": ">=24" },
   "scripts": {
     "test": "pnpm -r test",
+    "test:tunnel": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tunnel/test-tunnel-module.ps1",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",
     "mcp": "pnpm --filter @desktether/mcp-server build && node apps/mcp-server/dist/index.js"
