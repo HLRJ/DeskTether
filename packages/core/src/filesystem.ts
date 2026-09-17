@@ -8,6 +8,16 @@ export interface FileEntry {
   type: "file" | "directory" | "other";
 }
 
+export interface DirectoryTreeEntry extends FileEntry {
+  relativePath: string;
+  depth: number;
+}
+
+export interface DirectoryTreeResult {
+  entries: DirectoryTreeEntry[];
+  truncated: boolean;
+}
+
 export interface MultipleFileRead {
   path: string;
   content: string;
@@ -20,6 +30,41 @@ export interface FileInfo {
   size: number;
   createdAt: string;
   modifiedAt: string;
+}
+
+export interface TextReadPage {
+  content: string;
+  startOffset: number;
+  nextOffset: number;
+  totalBytes: number;
+  hasMore: boolean;
+}
+
+const MAX_TEXT_READ_BYTES = 1024 * 1024;
+
+function utf8SequenceLength(byte: number): number {
+  if ((byte & 0x80) === 0) return 1;
+  if ((byte & 0xe0) === 0xc0) return 2;
+  if ((byte & 0xf0) === 0xe0) return 3;
+  if ((byte & 0xf8) === 0xf0) return 4;
+  return 1;
+}
+
+function trimIncompleteUtf8Tail(buffer: Buffer): Buffer {
+  if (buffer.length === 0) return buffer;
+  let leadIndex = buffer.length - 1;
+  while (leadIndex > 0 && (buffer[leadIndex]! & 0xc0) === 0x80) leadIndex -= 1;
+  const expected = utf8SequenceLength(buffer[leadIndex]!);
+  const available = buffer.length - leadIndex;
+  return available < expected ? buffer.subarray(0, leadIndex) : buffer;
+}
+
+function isSameOrInside(parent: string, candidate: string): boolean {
+  const relative = path.relative(parent, candidate);
+  return relative === ""
+    || (!path.isAbsolute(relative)
+      && relative !== ".."
+      && !relative.startsWith(`..${path.sep}`));
 }
 
 export class FileSystemService {
@@ -38,15 +83,131 @@ export class FileSystemService {
       }));
     });
   }
+  async listTree(
+    directory: string,
+    maxDepth = 1,
+    maxEntries = 500,
+  ): Promise<DirectoryTreeResult> {
+    return this.run("list_directory", { path: directory, depth: maxDepth, maxEntries }, async () => {
+      if (!Number.isInteger(maxDepth) || maxDepth < 1 || maxDepth > 20) {
+        throw new Error("depth must be an integer between 1 and 20.");
+      }
+      if (!Number.isInteger(maxEntries) || maxEntries < 1 || maxEntries > 5000) {
+        throw new Error("maxEntries must be an integer between 1 and 5000.");
+      }
+
+      const root = this.policy.assertPath(directory);
+      const entries: DirectoryTreeEntry[] = [];
+      let truncated = false;
+
+      const walk = async (current: string, depth: number): Promise<void> => {
+        if (truncated || depth > maxDepth) return;
+        const dirents = await fs.readdir(current, { withFileTypes: true });
+        dirents.sort((a, b) => a.name.localeCompare(b.name));
+
+        for (const entry of dirents) {
+          if (entries.length >= maxEntries) {
+            truncated = true;
+            return;
+          }
+
+          const fullPath = path.join(current, entry.name);
+          entries.push({
+            name: entry.name,
+            relativePath: path.relative(root, fullPath),
+            depth,
+            type: entry.isDirectory() ? "directory" : entry.isFile() ? "file" : "other",
+          });
+
+          if (entry.isDirectory() && depth < maxDepth) {
+            await walk(fullPath, depth + 1);
+            if (truncated) return;
+          }
+        }
+      };
+
+      await walk(root, 1);
+      return { entries, truncated };
+    });
+  }
+
   async readText(filePath: string): Promise<string> {
     return this.run("read_file", { path: filePath }, async () => {
-      return fs.readFile(this.policy.assertPath(filePath), "utf8");
+      const resolved = this.policy.assertPath(filePath);
+      const stat = await fs.stat(resolved);
+      if (stat.size > MAX_TEXT_READ_BYTES) {
+        throw new Error(
+          `Text file is too large for an unpaged read (${stat.size} bytes); use offset and length.`,
+        );
+      }
+      return fs.readFile(resolved, "utf8");
+    });
+  }
+
+  async readTextRange(
+    filePath: string,
+    offset = 0,
+    length = 64 * 1024,
+  ): Promise<TextReadPage> {
+    return this.run("read_file", { path: filePath, offset, length }, async () => {
+      if (!Number.isInteger(offset)) throw new Error("offset must be an integer.");
+      if (!Number.isInteger(length) || length <= 0 || length > MAX_TEXT_READ_BYTES) {
+        throw new Error(`length must be between 1 and ${MAX_TEXT_READ_BYTES} bytes.`);
+      }
+
+      const resolved = this.policy.assertPath(filePath);
+      const stat = await fs.stat(resolved);
+      const requestedStart = offset < 0
+        ? Math.max(0, stat.size + offset)
+        : Math.min(offset, stat.size);
+      const bytesToRead = Math.min(length, stat.size - requestedStart);
+      const handle = await fs.open(resolved, "r");
+      try {
+        const buffer = Buffer.alloc(bytesToRead);
+        const { bytesRead } = await handle.read(buffer, 0, bytesToRead, requestedStart);
+        let page = buffer.subarray(0, bytesRead);
+        let startOffset = requestedStart;
+
+        while (page.length > 0 && (page[0]! & 0xc0) === 0x80) {
+          page = page.subarray(1);
+          startOffset += 1;
+        }
+        const completePage = trimIncompleteUtf8Tail(page);
+
+        const nextOffset = startOffset + completePage.length;
+        return {
+          content: completePage.toString("utf8"),
+          startOffset,
+          nextOffset,
+          totalBytes: stat.size,
+          hasMore: nextOffset < stat.size,
+        };
+      } finally {
+        await handle.close();
+      }
     });
   }
 
   async readMultiple(filePaths: string[]): Promise<MultipleFileRead[]> {
     return this.run("read_multiple_files", { paths: filePaths }, async () => {
       const resolved = filePaths.map((filePath) => this.policy.assertPath(filePath));
+      const stats = await Promise.all(resolved.map((filePath) => fs.stat(filePath)));
+
+      for (let index = 0; index < stats.length; index += 1) {
+        if (stats[index]!.size > MAX_TEXT_READ_BYTES) {
+          throw new Error(
+            `File is too large for read_multiple_files: ${resolved[index]} (${stats[index]!.size} bytes).`,
+          );
+        }
+      }
+
+      const totalBytes = stats.reduce((sum, stat) => sum + stat.size, 0);
+      if (totalBytes > 2 * MAX_TEXT_READ_BYTES) {
+        throw new Error(
+          `Combined read is too large (${totalBytes} bytes); reduce the file batch.`,
+        );
+      }
+
       return Promise.all(resolved.map(async (filePath) => ({
         path: filePath,
         content: await fs.readFile(filePath, "utf8"),
@@ -54,11 +215,19 @@ export class FileSystemService {
     });
   }
 
-  async writeText(filePath: string, content: string): Promise<void> {
-    return this.run("write_file", { path: filePath }, async () => {
+  async writeText(
+    filePath: string,
+    content: string,
+    mode: "rewrite" | "append" = "rewrite",
+  ): Promise<void> {
+    return this.run("write_file", { path: filePath, mode }, async () => {
       const resolved = this.policy.assertPath(filePath);
       await fs.mkdir(path.dirname(resolved), { recursive: true });
-      await fs.writeFile(resolved, content, "utf8");
+      if (mode === "append") {
+        await fs.appendFile(resolved, content, "utf8");
+      } else {
+        await fs.writeFile(resolved, content, "utf8");
+      }
     });
   }
 
@@ -80,8 +249,15 @@ export class FileSystemService {
       }
 
       const sourceStat = await fs.stat(safeSource);
-      if (!sourceStat.isFile()) {
-        throw new Error(`Source is not a file: ${safeSource}`);
+      if (!sourceStat.isFile() && !sourceStat.isDirectory()) {
+        throw new Error(`Source must be a file or directory: ${safeSource}`);
+      }
+
+      const destinationContainsSource = isSameOrInside(safeDestination, safeSource);
+      const sourceContainsDestination = sourceStat.isDirectory()
+        && isSameOrInside(safeSource, safeDestination);
+      if (destinationContainsSource || sourceContainsDestination) {
+        throw new Error("Source and destination paths overlap; move was refused.");
       }
 
       try {
@@ -89,7 +265,7 @@ export class FileSystemService {
         if (!overwrite) {
           throw new Error(`Destination already exists: ${safeDestination}`);
         }
-        await fs.rm(safeDestination, { force: true });
+        await fs.rm(safeDestination, { recursive: true, force: true });
       } catch (error) {
         if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
           throw error;

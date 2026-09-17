@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { AuditLog } from "../audit.js";
 import { Policy } from "../policy.js";
 
-export type SearchMode = "files" | "content";
+export type SearchMode = "files" | "content" | "regex";
 export type SearchStatus = "running" | "completed" | "cancelled" | "failed";
 
 export interface SearchResult {
@@ -18,6 +18,19 @@ export interface SearchOptions {
   pattern: string;
   mode: SearchMode;
   maxResults?: number;
+  include?: string[];
+  exclude?: string[];
+  caseSensitive?: boolean;
+}
+
+interface ResolvedSearchOptions {
+  root: string;
+  pattern: string;
+  mode: SearchMode;
+  maxResults: number;
+  include: string[];
+  exclude: string[];
+  caseSensitive: boolean;
 }
 
 interface SearchSession {
@@ -51,6 +64,42 @@ export interface SearchPage {
   error?: string;
 }
 
+function globToRegExp(glob: string): RegExp {
+  const normalized = glob.replaceAll("\\", "/");
+  let source = "^";
+
+  for (let index = 0; index < normalized.length; index += 1) {
+    const char = normalized[index]!;
+    if (char === "*") {
+      if (normalized[index + 1] === "*") {
+        index += 1;
+        if (normalized[index + 1] === "/") {
+          index += 1;
+          source += "(?:.*/)?";
+        } else {
+          source += ".*";
+        }
+      } else {
+        source += "[^/]*";
+      }
+      continue;
+    }
+    if (char === "?") {
+      source += "[^/]";
+      continue;
+    }
+    if ("\\.^$+{}()|[]".includes(char)) source += "\\" + char;
+    else source += char;
+  }
+
+  return new RegExp(source + "$");
+}
+
+function matchesGlobs(relativePath: string, patterns: string[]): boolean {
+  const normalized = relativePath.split(path.sep).join("/");
+  return patterns.some((pattern) => globToRegExp(pattern).test(normalized));
+}
+
 export class SearchSessionManager {
   private readonly sessions = new Map<string, SearchSession>();
 
@@ -74,11 +123,26 @@ export class SearchSessionManager {
     this.sessions.set(session.id, session);
     void this.audit.append({
       tool: "start_search",
-      args: { root, pattern: options.pattern, mode: options.mode },
+      args: {
+        root,
+        pattern: options.pattern,
+        mode: options.mode,
+        include: options.include ?? [],
+        exclude: options.exclude ?? [],
+        caseSensitive: options.caseSensitive ?? false,
+      },
       status: "success",
       durationMs: 0,
     });
-    void this.scan(session, { ...options, root, maxResults: options.maxResults ?? 1000 });
+    void this.scan(session, {
+      root,
+      pattern: options.pattern,
+      mode: options.mode,
+      maxResults: options.maxResults ?? 1000,
+      include: options.include ?? [],
+      exclude: options.exclude ?? [],
+      caseSensitive: options.caseSensitive ?? false,
+    });
     return { id: session.id, status: session.status };
   }
 
@@ -112,9 +176,12 @@ export class SearchSessionManager {
     }));
   }
 
-  private async scan(session: SearchSession, options: Required<SearchOptions>): Promise<void> {
+  private async scan(session: SearchSession, options: ResolvedSearchOptions): Promise<void> {
     try {
-      await this.walk(session, options, options.root);
+      const regex = options.mode === "regex"
+        ? new RegExp(options.pattern, options.caseSensitive ? "" : "i")
+        : undefined;
+      await this.walk(session, options, options.root, regex);
       if (session.status === "running") session.status = "completed";
     } catch (error) {
       session.status = "failed";
@@ -122,7 +189,12 @@ export class SearchSessionManager {
     }
   }
 
-  private async walk(session: SearchSession, options: Required<SearchOptions>, directory: string): Promise<void> {
+  private async walk(
+    session: SearchSession,
+    options: ResolvedSearchOptions,
+    directory: string,
+    regex?: RegExp,
+  ): Promise<void> {
     if (session.cancelled || session.results.length >= options.maxResults) return;
     const entries = await fs.readdir(directory, { withFileTypes: true });
     for (const entry of entries) {
@@ -131,27 +203,44 @@ export class SearchSessionManager {
       const fullPath = path.join(directory, entry.name);
       if (path.resolve(fullPath) === this.audit.path) continue;
       if (entry.isDirectory()) {
-        await this.walk(session, options, fullPath);
+        await this.walk(session, options, fullPath, regex);
         continue;
       }
       if (!entry.isFile()) continue;
+
+      const relativePath = path.relative(options.root, fullPath);
+      if (options.exclude.length > 0 && matchesGlobs(relativePath, options.exclude)) continue;
+      if (options.include.length > 0 && !matchesGlobs(relativePath, options.include)) continue;
+
       if (options.mode === "files") {
-        if (entry.name.toLowerCase().includes(options.pattern.toLowerCase())) session.results.push({ path: fullPath });
+        const name = options.caseSensitive ? entry.name : entry.name.toLowerCase();
+        const needle = options.caseSensitive ? options.pattern : options.pattern.toLowerCase();
+        if (name.includes(needle)) session.results.push({ path: fullPath });
         continue;
       }
-      await this.searchContent(session, options, fullPath);
+      await this.searchContent(session, options, fullPath, regex);
     }
   }
 
-  private async searchContent(session: SearchSession, options: Required<SearchOptions>, filePath: string): Promise<void> {
+  private async searchContent(
+    session: SearchSession,
+    options: ResolvedSearchOptions,
+    filePath: string,
+    regex?: RegExp,
+  ): Promise<void> {
     try {
       const stat = await fs.stat(filePath);
       if (stat.size > 2 * 1024 * 1024) return;
       const text = await fs.readFile(filePath, "utf8");
-      const needle = options.pattern.toLowerCase();
+      const needle = options.caseSensitive ? options.pattern : options.pattern.toLowerCase();
       for (const [index, line] of text.split(/\r?\n/).entries()) {
         if (session.cancelled || session.results.length >= options.maxResults) return;
-        if (line.toLowerCase().includes(needle)) session.results.push({ path: filePath, line: index + 1, preview: line.trim() });
+        const matched = options.mode === "regex"
+          ? Boolean(regex?.test(line))
+          : (options.caseSensitive ? line : line.toLowerCase()).includes(needle);
+        if (matched) {
+          session.results.push({ path: filePath, line: index + 1, preview: line.trim() });
+        }
       }
     } catch {
       // Skip files that cannot be decoded or read.

@@ -71,11 +71,29 @@ async function dispatch(runtime: DeskTetherRuntime, name: string, args: Record<s
     case "device_info":
       return getDeviceInfo();
     case "list_directory":
+      if (args.depth !== undefined || args.maxEntries !== undefined) {
+        return runtime.filesystem.listTree(
+          String(args.path),
+          args.depth === undefined ? 1 : Number(args.depth),
+          args.maxEntries === undefined ? 500 : Number(args.maxEntries),
+        );
+      }
       return runtime.filesystem.list(String(args.path));
     case "read_text_file":
+      if (args.offset !== undefined || args.length !== undefined) {
+        return runtime.filesystem.readTextRange(
+          String(args.path),
+          args.offset === undefined ? 0 : Number(args.offset),
+          args.length === undefined ? 64 * 1024 : Number(args.length),
+        );
+      }
       return runtime.filesystem.readText(String(args.path));
     case "write_text_file":
-      await runtime.filesystem.writeText(String(args.path), String(args.content));
+      await runtime.filesystem.writeText(
+        String(args.path),
+        String(args.content),
+        args.mode === "append" ? "append" : "rewrite",
+      );
       return { ok: true };
     case "read_multiple_files":
       return runtime.filesystem.readMultiple((args.paths as unknown[]).map(String));
@@ -131,8 +149,11 @@ async function dispatch(runtime: DeskTetherRuntime, name: string, args: Record<s
       return runtime.searches.start({
         root: String(args.root),
         pattern: String(args.pattern),
-        mode: args.mode as "files" | "content",
+        mode: args.mode as "files" | "content" | "regex",
         maxResults: args.maxResults === undefined ? undefined : Number(args.maxResults),
+        include: args.include as string[] | undefined,
+        exclude: args.exclude as string[] | undefined,
+        caseSensitive: args.caseSensitive === undefined ? undefined : Boolean(args.caseSensitive),
       });
     case "get_search_results":
       return runtime.searches.read(
@@ -145,6 +166,18 @@ async function dispatch(runtime: DeskTetherRuntime, name: string, args: Record<s
       return { ok: true };
     case "list_searches":
       return runtime.searches.list();
+    case "search_code":
+      return runtime.searches.start({
+        root: String(args.root),
+        pattern: String(args.pattern),
+        mode: "regex",
+        maxResults: args.maxResults === undefined ? undefined : Number(args.maxResults),
+        include: args.include as string[] | undefined,
+        exclude: args.exclude as string[] | undefined,
+        caseSensitive: args.caseSensitive === undefined ? undefined : Boolean(args.caseSensitive),
+      });
+    case "get_recent_activity":
+      return runtime.audit.recent(args.limit === undefined ? 50 : Number(args.limit));
     case "git_status":
       return gitStatus(String(args.cwd), runtime.policy);
     case "git_diff":

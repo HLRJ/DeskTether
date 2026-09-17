@@ -29,6 +29,30 @@ describe("SearchSessionManager", () => {
     expect(manager.read(content.id, 0, 10).results[0]).toEqual(expect.objectContaining({ line: 2, preview: "needle here" }));
   });
 
+  it("supports regex code search with include and exclude globs", async () => {
+    const { root, manager } = await fixture();
+    await fs.mkdir(path.join(root, "src"), { recursive: true });
+    await fs.writeFile(path.join(root, "src", "main.ts"), "const needle42 = 1;\n", "utf8");
+    await fs.writeFile(path.join(root, "src", "main.js"), "const needle42 = 1;\n", "utf8");
+    await fs.writeFile(path.join(root, "src", "skip.test.ts"), "const needle42 = 1;\n", "utf8");
+
+    const session = manager.start({
+      root,
+      pattern: "needle\\d+",
+      mode: "regex",
+      include: ["**/*.ts"],
+      exclude: ["**/*.test.ts"],
+      caseSensitive: true,
+    });
+    await waitForDone(manager, session.id);
+
+    const page = manager.read(session.id, 0, 10);
+    expect(page.status).toBe("completed");
+    expect(page.results).toHaveLength(1);
+    expect(page.results[0]?.path).toMatch(/main\.ts$/);
+    expect(page.results[0]?.preview).toContain("needle42");
+  });
+
   it("can cancel a running search", async () => {
     const { root, manager } = await fixture();
     const session = manager.start({ root, pattern: "anything", mode: "content" });
