@@ -26,6 +26,19 @@ export function getToolDefinitions(): ToolDefinition[] {
       description: "Start a command as a managed process session.",
       inputSchema: z.object({ command: z.string().min(1), cwd: z.string().min(1) }),
     },
+    {
+      name: "powershell_start",
+      description: "Start a policy-enforced PowerShell session on Windows.",
+      inputSchema: z.object({ command: z.string().min(1), cwd: z.string().min(1) }),
+    },
+    { name: "powershell_read", description: "Read buffered output and state for a PowerShell session.", inputSchema: sessionOnly },
+    {
+      name: "powershell_input",
+      description: "Write stdin to a running PowerShell session.",
+      inputSchema: z.object({ sessionId: z.string().uuid(), input: z.string() }),
+    },
+    { name: "powershell_terminate", description: "Terminate a managed PowerShell session.", inputSchema: sessionOnly },
+    { name: "powershell_list", description: "List managed PowerShell sessions.", inputSchema: noArgs },
     { name: "read_process_output", description: "Read buffered output and state for a process session.", inputSchema: sessionOnly },
     {
       name: "write_process_input",
