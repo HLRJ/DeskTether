@@ -26,6 +26,41 @@ function Get-DeskTetherMcpCommand {
     $entryPoint = Join-Path $ProjectRoot 'apps\mcp-server\dist\index.js'
     return "node `"$entryPoint`""
 }
+function Get-DeskTetherTunnelStatePaths {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectRoot,
+        [string]$ProfileName = 'desktether-local'
+    )
+
+    $safeProfile = $ProfileName -replace '[^A-Za-z0-9_.-]', '_'
+    $stateDir = Join-Path $ProjectRoot '.tools\tunnel-state'
+    [pscustomobject]@{
+        Directory = $stateDir
+        PidFile = Join-Path $stateDir "$safeProfile.pid"
+        HealthUrlFile = Join-Path $stateDir "$safeProfile.health-url"
+    }
+}
+
+function Get-DeskTetherTunnelRunArguments {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProfileName,
+        [Parameter(Mandatory = $true)]
+        $StatePaths
+    )
+
+    return @(
+        'run',
+        '--profile', $ProfileName,
+        '--health.listen-addr', '127.0.0.1:0',
+        '--health.url-file', $StatePaths.HealthUrlFile,
+        '--pid.file', $StatePaths.PidFile
+    )
+}
+
 function Assert-DeskTetherTunnelEnvironment {
     [CmdletBinding()]
     param()
@@ -48,5 +83,7 @@ function Assert-DeskTetherTunnelEnvironment {
 Export-ModuleMember -Function @(
     'Get-DeskTetherTunnelRelease',
     'Get-DeskTetherMcpCommand',
+    'Get-DeskTetherTunnelStatePaths',
+    'Get-DeskTetherTunnelRunArguments',
     'Assert-DeskTetherTunnelEnvironment'
 )

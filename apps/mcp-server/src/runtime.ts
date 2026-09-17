@@ -11,6 +11,9 @@ import {
 export interface RuntimeOptions {
   allowedRoots: string[];
   blockedCommands: string[];
+  denyCommands?: string[];
+  confirmCommands?: string[];
+  allowCommands?: string[];
   auditPath: string;
 }
 
@@ -26,6 +29,9 @@ export function createRuntime(options: RuntimeOptions): DeskTetherRuntime {
   const policy = new Policy({
     allowedRoots: options.allowedRoots,
     blockedCommands: options.blockedCommands,
+    denyCommands: options.denyCommands,
+    confirmCommands: options.confirmCommands,
+    allowCommands: options.allowCommands,
   });
   const audit = new AuditLog(options.auditPath);
   return {
@@ -46,7 +52,27 @@ export function createRuntimeFromEnv(): DeskTetherRuntime {
     .split(",")
     .map((value) => value.trim())
     .filter(Boolean);
+  const denyCommands = (process.env.DESKTETHER_DENY_COMMANDS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const confirmCommands = (process.env.DESKTETHER_CONFIRM_COMMANDS
+    ?? "remove-item -recurse,git push,npm publish,pnpm publish")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const allowCommands = (process.env.DESKTETHER_ALLOW_COMMANDS ?? "git status,pnpm test")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
   const auditPath = process.env.DESKTETHER_AUDIT_PATH
     ?? path.join(os.homedir(), ".desktether", "audit.jsonl");
-  return createRuntime({ allowedRoots, blockedCommands, auditPath });
+  return createRuntime({
+    allowedRoots,
+    blockedCommands,
+    denyCommands,
+    confirmCommands,
+    allowCommands,
+    auditPath,
+  });
 }

@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import type { CommandDecision } from "./policy.js";
 
 export type AuditStatus = "success" | "rejected" | "error";
 
@@ -10,6 +11,11 @@ export interface AuditRecord {
   durationMs: number;
   args?: Record<string, unknown>;
   error?: string;
+  decision?: CommandDecision;
+  confirmationRequired?: boolean;
+  confirmationConsumed?: boolean;
+  sessionId?: string;
+  exitCode?: number | null;
 }
 
 export class AuditLog {
@@ -24,6 +30,7 @@ export class AuditLog {
     const payload = {
       ...record,
       timestamp: record.timestamp ?? new Date().toISOString(),
-    };    await fs.appendFile(this.filePath, `${JSON.stringify(payload)}\n`, "utf8");
+    };
+    await fs.appendFile(this.filePath, `${JSON.stringify(payload)}\n`, "utf8");
   }
 }

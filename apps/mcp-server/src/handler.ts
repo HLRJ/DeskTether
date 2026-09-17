@@ -5,6 +5,7 @@ import {
   gitStatus,
   killProcess,
   listProcesses,
+  type AuditRecord,
 } from "@desktether/core";
 import { getToolDefinitions } from "./tool-catalog.js";
 import type { DeskTetherRuntime } from "./runtime.js";
@@ -29,6 +30,42 @@ function textResult(value: unknown, isError = false): McpToolResult {
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
+
+function auditArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const { confirmationToken: _confirmationToken, ...safe } = args;
+  return safe;
+}
+
+function auditMetadata(
+  runtime: DeskTetherRuntime,
+  name: string,
+  args: Record<string, unknown>,
+  value?: unknown,
+): Partial<AuditRecord> {
+  const metadata: Partial<AuditRecord> = {};
+  const result = typeof value === "object" && value !== null
+    ? value as Record<string, unknown>
+    : undefined;
+
+  if ((name === "start_process" || name === "powershell_start") && typeof args.command === "string") {
+    metadata.decision = runtime.policy.evaluateCommand(args.command).decision;
+    if (metadata.decision === "CONFIRM") {
+      metadata.confirmationRequired = result?.status === "confirmation_required";
+      metadata.confirmationConsumed = Boolean(args.confirmationToken)
+        && metadata.confirmationRequired === false;
+    }
+  }
+
+  const resultSessionId = typeof result?.id === "string" ? result.id : undefined;
+  const argumentSessionId = typeof args.sessionId === "string" ? args.sessionId : undefined;
+  metadata.sessionId = resultSessionId ?? argumentSessionId;
+
+  if (typeof result?.exitCode === "number" || result?.exitCode === null) {
+    metadata.exitCode = result.exitCode as number | null;
+  }
+  return metadata;
+}
+
 async function dispatch(runtime: DeskTetherRuntime, name: string, args: Record<string, unknown>): Promise<unknown> {
   switch (name) {
     case "device_info":
@@ -42,10 +79,17 @@ async function dispatch(runtime: DeskTetherRuntime, name: string, args: Record<s
       return { ok: true };
     case "start_process":
     case "powershell_start":
-      return runtime.processes.start(String(args.command), String(args.cwd));
+      return runtime.processes.start(
+        String(args.command),
+        String(args.cwd),
+        args.confirmationToken === undefined ? undefined : String(args.confirmationToken),
+      );
     case "read_process_output":
     case "powershell_read":
-      return runtime.processes.read(String(args.sessionId));
+      return runtime.processes.read(String(args.sessionId), {
+        stdoutOffset: args.stdoutOffset === undefined ? undefined : Number(args.stdoutOffset),
+        stderrOffset: args.stderrOffset === undefined ? undefined : Number(args.stderrOffset),
+      });
     case "write_process_input":
     case "powershell_input":
       runtime.processes.write(String(args.sessionId), String(args.input));
@@ -102,19 +146,21 @@ export async function executeTool(
     const value = await dispatch(runtime, name, args);
     await runtime.audit.append({
       tool: name,
-      args,
+      args: auditArgs(args),
       status: "success",
       durationMs: Date.now() - started,
+      ...auditMetadata(runtime, name, args, value),
     });
     return textResult(value);
   } catch (error) {
     const status = error instanceof Error && error.name === "PolicyError" ? "rejected" : "error";
     await runtime.audit.append({
       tool: name,
-      args: rawArgs,
+      args: auditArgs(rawArgs),
       status,
       durationMs: Date.now() - started,
       error: errorMessage(error),
+      ...auditMetadata(runtime, name, rawArgs),
     });
     return textResult(errorMessage(error), true);
   }

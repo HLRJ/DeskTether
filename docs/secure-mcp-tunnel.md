@@ -1,6 +1,6 @@
 # DeskTether Secure MCP Tunnel
 
-This guide connects the local DeskTether stdio MCP server to supported ChatGPT custom MCP apps through OpenAI Secure MCP Tunnel.
+This guide connects the local DeskTether V0.2.1 stdio MCP server to supported ChatGPT custom MCP apps through OpenAI Secure MCP Tunnel.
 
 ## Architecture
 
@@ -88,9 +88,7 @@ $env:DESKTETHER_ALLOWED_ROOTS=(Get-Location).Path
 ## 4. Run doctor first
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\scripts\tunnel\Connect-DeskTetherTunnel.ps1 `
-  -DoctorOnly
+pnpm tunnel:doctor
 ```
 
 The script:
@@ -104,14 +102,21 @@ The script:
 
 The generated profile references the API key as `env:CONTROL_PLANE_API_KEY`; it does not contain the literal key.
 
-## 5. Start the tunnel runtime
+## 5. Start and inspect the tunnel runtime
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\scripts\tunnel\Connect-DeskTetherTunnel.ps1
+pnpm tunnel:start
 ```
 
 Keep that foreground process running while ChatGPT uses DeskTether. For stdio MCP, use only one active tunnel-client process for a given tunnel ID.
+
+In another terminal, inspect local runtime health:
+
+```powershell
+pnpm tunnel:status
+```
+
+V0.2.1 runs the tunnel-client health listener on an ephemeral loopback port and stores only the PID plus resolved health URL under ignored `.tools/tunnel-state/` files. The status command is read-only and does not print the runtime API key.
 ## 6. Attach in ChatGPT Web
 
 In an eligible ChatGPT workspace, enable developer mode and create a custom MCP app from the Apps settings. Choose the Secure MCP Tunnel you created, scan the tool catalog, and verify the five PowerShell actions appear:
@@ -135,10 +140,11 @@ Then read the session output.
 ## Security notes
 
 - Keep `DESKTETHER_ALLOWED_ROOTS` narrow. Prefer project directories instead of an entire drive.
-- Extend `DESKTETHER_BLOCKED_COMMANDS` for your environment before production use.
-- The current blocked-command policy is a prefix denylist, not a complete sandbox.
-- Every MCP action is written to the local JSONL audit log.
-- Do not pass reusable secrets as PowerShell command text because commands and tool arguments may be present in the local audit log.
+- Use `DESKTETHER_DENY_COMMANDS`, `DESKTETHER_CONFIRM_COMMANDS`, and `DESKTETHER_ALLOW_COMMANDS` to tune command prefixes. Legacy `DESKTETHER_BLOCKED_COMMANDS` remains supported as DENY.
+- Policy precedence is `DENY → explicit ALLOW → CONFIRM → default ALLOW`; this is risk reduction, not a PowerShell sandbox.
+- CONFIRM returns a one-time token bound to the exact command and working directory. Tokens expire after five minutes and are consumed once.
+- Every MCP action is written to the local JSONL audit log. Confirmation tokens are stripped before persistence.
+- Do not pass reusable secrets as PowerShell command text because command text itself may be present in the local audit log.
 - Never commit `CONTROL_PLANE_API_KEY`, `OPENAI_ADMIN_KEY`, or an exported profile containing literal credentials.
 - Do not expose DeskTether itself through port forwarding or a public reverse proxy when Secure MCP Tunnel is available.
 
@@ -146,7 +152,9 @@ Then read the session output.
 
 If the connector script reports missing variables, set `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY` in the same shell before running it.
 
-If `doctor --explain` fails, resolve its reported tunnel permissions, organization/workspace association, proxy, or network issue before starting `run`.
+If `pnpm tunnel:doctor` fails, resolve its reported tunnel permissions, organization/workspace association, proxy, or network issue before starting the tunnel.
+
+If `pnpm tunnel:status` reports `stopped` or `unhealthy`, verify the foreground `pnpm tunnel:start` process is still running and inspect the tunnel-client output in that terminal.
 
 Verify the installed client with:
 
