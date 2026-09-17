@@ -9,6 +9,11 @@ export interface ToolDefinition {
 const noArgs = z.object({});
 const pathOnly = z.object({ path: z.string().min(1) });
 const sessionOnly = z.object({ sessionId: z.string().uuid() });
+const sessionRead = z.object({
+  sessionId: z.string().uuid(),
+  stdoutOffset: z.number().int().nonnegative().optional(),
+  stderrOffset: z.number().int().nonnegative().optional(),
+});
 const cwdOnly = z.object({ cwd: z.string().min(1) });
 
 export function getToolDefinitions(): ToolDefinition[] {
@@ -24,14 +29,22 @@ export function getToolDefinitions(): ToolDefinition[] {
     {
       name: "start_process",
       description: "Start a command as a managed process session.",
-      inputSchema: z.object({ command: z.string().min(1), cwd: z.string().min(1) }),
+      inputSchema: z.object({
+        command: z.string().min(1),
+        cwd: z.string().min(1),
+        confirmationToken: z.string().uuid().optional(),
+      }),
     },
     {
       name: "powershell_start",
       description: "Start a policy-enforced PowerShell session on Windows.",
-      inputSchema: z.object({ command: z.string().min(1), cwd: z.string().min(1) }),
+      inputSchema: z.object({
+        command: z.string().min(1),
+        cwd: z.string().min(1),
+        confirmationToken: z.string().uuid().optional(),
+      }),
     },
-    { name: "powershell_read", description: "Read buffered output and state for a PowerShell session.", inputSchema: sessionOnly },
+    { name: "powershell_read", description: "Read buffered output and state for a PowerShell session.", inputSchema: sessionRead },
     {
       name: "powershell_input",
       description: "Write stdin to a running PowerShell session.",
@@ -39,7 +52,7 @@ export function getToolDefinitions(): ToolDefinition[] {
     },
     { name: "powershell_terminate", description: "Terminate a managed PowerShell session.", inputSchema: sessionOnly },
     { name: "powershell_list", description: "List managed PowerShell sessions.", inputSchema: noArgs },
-    { name: "read_process_output", description: "Read buffered output and state for a process session.", inputSchema: sessionOnly },
+    { name: "read_process_output", description: "Read buffered output and state for a process session.", inputSchema: sessionRead },
     {
       name: "write_process_input",
       description: "Write stdin to a running process session.",

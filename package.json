@@ -1,6 +1,6 @@
 {
   "name": "desktether",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.10.0",
@@ -10,6 +10,9 @@
   "scripts": {
     "test": "pnpm -r test",
     "test:tunnel": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tunnel/test-tunnel-module.ps1",
+    "tunnel:doctor": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tunnel/Connect-DeskTetherTunnel.ps1 -DoctorOnly",
+    "tunnel:start": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tunnel/Connect-DeskTetherTunnel.ps1",
+    "tunnel:status": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/tunnel/Get-DeskTetherTunnelStatus.ps1",
     "typecheck": "pnpm -r typecheck",
     "build": "pnpm -r build",
     "mcp": "pnpm --filter @desktether/mcp-server build && node apps/mcp-server/dist/index.js"

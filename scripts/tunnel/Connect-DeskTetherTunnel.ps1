@@ -53,9 +53,15 @@ if ($DoctorOnly) {
     Write-Host 'DeskTether tunnel doctor completed successfully.'
     exit 0
 }
+$statePaths = Get-DeskTetherTunnelStatePaths -ProjectRoot $projectRoot -ProfileName $ProfileName
+New-Item -ItemType Directory -Force -Path $statePaths.Directory | Out-Null
+Remove-Item -LiteralPath $statePaths.PidFile -ErrorAction SilentlyContinue
+Remove-Item -LiteralPath $statePaths.HealthUrlFile -ErrorAction SilentlyContinue
+$runArgs = Get-DeskTetherTunnelRunArguments -ProfileName $ProfileName -StatePaths $statePaths
+
 Write-Host "Starting DeskTether Secure MCP Tunnel profile '$ProfileName'."
 Write-Host 'Keep this process running while ChatGPT uses DeskTether.'
-& $TunnelClientBin run --profile $ProfileName
+& $TunnelClientBin @runArgs
 if ($LASTEXITCODE -ne 0) {
     throw "tunnel-client exited with code $LASTEXITCODE."
 }

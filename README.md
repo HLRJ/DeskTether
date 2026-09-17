@@ -2,9 +2,9 @@
 
 **Securely connect AI agents to your local machine.**
 
-DeskTether is an open-source, Windows-first MCP bridge that exposes carefully scoped local-computer capabilities to AI clients. V0.2 adds explicit PowerShell MCP actions and an OpenAI Secure MCP Tunnel bootstrap path on top of the V0.1 local capability layer.
+DeskTether is an open-source, Windows-first MCP bridge that exposes carefully scoped local-computer capabilities to AI clients. V0.2.1 hardens the V0.2 PowerShell and Secure MCP Tunnel path with three-state command policy, one-time confirmations, richer process sessions, safer audit metadata, and tunnel health/status UX.
 
-> **Status:** V0.2 development release. Local MCP runs over stdio, and the included Windows scripts can attach that stdio server to OpenAI Secure MCP Tunnel without exposing a public inbound port. Final ChatGPT Web write-action use still depends on workspace eligibility.
+> **Status:** V0.2.1 development release. Local MCP runs over stdio, and the included Windows scripts can attach that stdio server to OpenAI Secure MCP Tunnel without exposing a public inbound port. Final ChatGPT Web write-action use still depends on workspace eligibility.
 
 ## Why DeskTether
 
@@ -28,16 +28,18 @@ DeskTether MCP Server
 ## Capabilities
 
 - Allowed-root filesystem boundary
-- Blocked command-prefix policy
-- Persistent JSONL audit log
-- Text file read/write and directory listing- Long-running terminal sessions with buffered output and stdin
+- Three-state command policy: `ALLOW`, `CONFIRM`, and `DENY`
+- One-time confirmation tokens bound to command + working directory
+- Persistent JSONL audit log with confirmation/session metadata and token redaction
+- Text file read/write and directory listing
+- Long-running terminal sessions with bounded stdout/stderr buffers, offsets, stdin, PID, timing, and exit code
 - Explicit PowerShell start/read/input/list/terminate tools
 - System process listing and PID termination
 - Cancellable, paged file/content search sessions
 - Read-only Git `status`, `diff`, and `log`
 - Device/runtime information
 - MCP TypeScript SDK v2 over stdio
-- OpenAI Secure MCP Tunnel bootstrap with pinned tunnel-client verification
+- OpenAI Secure MCP Tunnel bootstrap with pinned tunnel-client verification, doctor/start/status commands, PID file, and health probe
 
 ## MCP tools
 
@@ -74,6 +76,8 @@ Set the folders DeskTether is allowed to access before starting it:
 ```powershell
 $env:DESKTETHER_ALLOWED_ROOTS=(Get-Location).Path
 $env:DESKTETHER_BLOCKED_COMMANDS="format,diskpart,shutdown,shutdown.exe,restart-computer"
+$env:DESKTETHER_CONFIRM_COMMANDS="remove-item -recurse,git push,npm publish,pnpm publish"
+$env:DESKTETHER_ALLOW_COMMANDS="git status,pnpm test"
 pnpm mcp
 ```
 
@@ -89,15 +93,17 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\scripts\tunnel\Install-TunnelClient.ps1
 ```
 
-After creating the OpenAI tunnel and runtime key, set `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY`, then run:
+After creating the OpenAI tunnel and runtime key, set `CONTROL_PLANE_TUNNEL_ID` and `CONTROL_PLANE_API_KEY`, then use the V0.2.1 tunnel commands:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\scripts\tunnel\Connect-DeskTetherTunnel.ps1 `
-  -DoctorOnly
+pnpm tunnel:doctor
+pnpm tunnel:start
+```
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\scripts\tunnel\Connect-DeskTetherTunnel.ps1
+In another terminal, inspect the live local tunnel state without reading or printing the API key:
+
+```powershell
+pnpm tunnel:status
 ```
 
 See [`docs/secure-mcp-tunnel.md`](docs/secure-mcp-tunnel.md) for the complete setup and current ChatGPT plan/workspace requirements.
@@ -106,7 +112,10 @@ See [`docs/secure-mcp-tunnel.md`](docs/secure-mcp-tunnel.md) for the complete se
 | Variable | Meaning | Default |
 |---|---|---|
 | `DESKTETHER_ALLOWED_ROOTS` | Allowed filesystem roots; separate Windows roots with `;` | current working directory |
-| `DESKTETHER_BLOCKED_COMMANDS` | Comma-separated command prefixes rejected before spawn | destructive system commands |
+| `DESKTETHER_BLOCKED_COMMANDS` | Legacy denylist; mapped to `DENY` | destructive system commands |
+| `DESKTETHER_DENY_COMMANDS` | Additional command prefixes that are always rejected | empty |
+| `DESKTETHER_CONFIRM_COMMANDS` | Command prefixes requiring one-time confirmation | selected destructive/publish/push commands |
+| `DESKTETHER_ALLOW_COMMANDS` | Explicit safe prefixes that override broader `CONFIRM` rules | `git status,pnpm test` |
 | `DESKTETHER_AUDIT_PATH` | JSONL audit file | `%USERPROFILE%\.desktether\audit.jsonl` |
 | `CONTROL_PLANE_TUNNEL_ID` | OpenAI Secure MCP Tunnel identifier | none |
 | `CONTROL_PLANE_API_KEY` | Runtime key used by tunnel-client | none |
@@ -122,11 +131,11 @@ $env:DESKTETHER_ALLOWED_ROOTS="$root1;$root2"
 
 ## Security model
 
-DeskTether should be treated as a local execution bridge, not as a sandbox. It reduces risk with explicit allowed filesystem roots, blocked command prefixes, structured tool schemas, audit logs, and an authenticated outbound tunnel, but a permitted PowerShell session can still execute powerful commands.
+DeskTether should be treated as a local execution bridge, not as a sandbox. It reduces risk with explicit allowed filesystem roots, three-state command policy, one-time confirmation tokens, structured tool schemas, audit logs, and an authenticated outbound tunnel, but a permitted PowerShell session can still execute powerful commands.
 
 Do **not** expose DeskTether itself with direct port forwarding or a public reverse proxy. Use the supported Secure MCP Tunnel path for remote ChatGPT access.
 
-The audit log records the tool name, arguments, result class, duration, and timestamp. Secrets should not be passed directly as PowerShell command text or tool arguments because they may appear in local audit records.
+The audit log records tool, policy decision, confirmation state, session identity, exit code, result class, duration, and timestamp where applicable. DeskTether strips `confirmationToken` before audit persistence. Reusable secrets still should not be passed directly as PowerShell command text because command text itself may be audited.
 
 ## Development
 
@@ -135,6 +144,7 @@ pnpm test
 pnpm test:tunnel
 pnpm typecheck
 pnpm build
+pnpm tunnel:status
 ```
 Core capabilities live in `packages/core`. The MCP transport adapter lives in `apps/mcp-server`. The tunnel scripts live in `scripts/tunnel`. This keeps local-computer logic independent from ChatGPT/tunnel plumbing.
 
@@ -142,6 +152,7 @@ Core capabilities live in `packages/core`. The MCP transport adapter lives in `a
 
 - **V0.1** — filesystem, policy, audit, terminal/process sessions, streaming search, Git inspection, stdio MCP
 - **V0.2** — explicit PowerShell tools + OpenAI Secure MCP Tunnel bootstrap
+- **V0.2.1** — three-state permission engine, one-time confirmation, bounded session streaming, richer audit, tunnel doctor/start/status
 - **V0.3** — Chrome DevTools / browser automation adapter
 - **V0.4** — Windows screenshots, window discovery, keyboard/mouse and UI Automation
 - **V0.5** — multi-device pairing, stronger permission profiles, local approval UX

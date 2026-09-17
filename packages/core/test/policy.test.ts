@@ -3,20 +3,61 @@ import path from "node:path";
 import { Policy, PolicyError } from "../src/policy.js";
 
 describe("Policy", () => {
+  const root = path.resolve("workspace");
+
   it("accepts paths inside an allowed root", () => {
-    const root = path.resolve("G:/Codes");
     const policy = new Policy({ allowedRoots: [root], blockedCommands: [] });
-    expect(policy.assertPath(path.join(root, "DeskTether"))).toContain("DeskTether");
+    expect(policy.assertPath(path.join(root, "project"))).toContain("project");
   });
 
   it("rejects paths outside every allowed root", () => {
-    const policy = new Policy({ allowedRoots: [path.resolve("G:/Codes")], blockedCommands: [] });
-    expect(() => policy.assertPath(path.resolve("C:/Windows"))).toThrow(PolicyError);
+    const policy = new Policy({ allowedRoots: [root], blockedCommands: [] });
+    expect(() => policy.assertPath(path.resolve("outside"))).toThrow(PolicyError);
   });
 
-  it("rejects blocked command prefixes case-insensitively", () => {
-    const policy = new Policy({ allowedRoots: [path.resolve("G:/Codes")], blockedCommands: ["shutdown", "format"] });
-    expect(() => policy.assertCommand("SHUTDOWN /s /t 0")).toThrow(PolicyError);
-    expect(policy.assertCommand("git status")).toBe("git status");
+  it("maps legacy blockedCommands to DENY", () => {
+    const policy = new Policy({ allowedRoots: [root], blockedCommands: ["shutdown"] });
+    expect(policy.evaluateCommand("SHUTDOWN /s").decision).toBe("DENY");
+    expect(() => policy.assertCommand("shutdown /s")).toThrow(PolicyError);
+  });
+
+  it("applies DENY before ALLOW and CONFIRM", () => {
+    const policy = new Policy({
+      allowedRoots: [root],
+      blockedCommands: [],
+      denyCommands: ["git push"],
+      allowCommands: ["git push"],
+      confirmCommands: ["git"],
+    });
+    expect(policy.evaluateCommand("git push origin main").decision).toBe("DENY");
+  });
+
+  it("applies explicit ALLOW before CONFIRM", () => {
+    const policy = new Policy({
+      allowedRoots: [root],
+      blockedCommands: [],
+      allowCommands: ["git status"],
+      confirmCommands: ["git"],
+    });
+    expect(policy.evaluateCommand("git status").decision).toBe("ALLOW");
+    expect(policy.evaluateCommand("git push origin main").decision).toBe("CONFIRM");
+  });
+
+  it("does not let an explicit ALLOW bypass broader CONFIRM through shell composition", () => {
+    const policy = new Policy({
+      allowedRoots: [root],
+      blockedCommands: [],
+      allowCommands: ["git status"],
+      confirmCommands: ["git"],
+    });
+
+    expect(policy.evaluateCommand("git status && git push").decision).toBe("CONFIRM");
+    expect(policy.evaluateCommand("git status > status.txt").decision).toBe("CONFIRM");
+    expect(policy.evaluateCommand("git status $(git push)").decision).toBe("CONFIRM");
+  });
+
+  it("defaults unmatched commands to ALLOW", () => {
+    const policy = new Policy({ allowedRoots: [root], blockedCommands: [] });
+    expect(policy.evaluateCommand("Get-Location").decision).toBe("ALLOW");
   });
 });
