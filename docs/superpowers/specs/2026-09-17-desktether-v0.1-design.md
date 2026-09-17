@@ -4,7 +4,7 @@
 DeskTether is a secure MCP bridge between AI agents and a user's local computer. V0.1 focuses on developer-grade local control: device metadata, filesystem access, terminal sessions, streaming search, process inspection, Git helpers, permissions, and audit logs.
 
 ## Architecture
-The repository is a pnpm TypeScript monorepo. pps/mcp-server exposes MCP tools over stdio first; packages/core contains capability modules that can later be reused by a remote desktop agent. The public tool surface never performs raw filesystem or shell access directly; every operation passes through policy checks and audit recording.
+The repository is a pnpm TypeScript monorepo. apps/mcp-server exposes MCP tools over stdio first; packages/core contains capability modules that can later be reused by a remote desktop agent. The public tool surface never performs raw filesystem or shell access directly; every operation passes through policy checks and audit recording.
 
 ## V0.1 Scope
 - Device information and health metadata.
@@ -30,9 +30,9 @@ Default deny outside configured roots. Resolve and normalize paths before author
 Long-running terminal and search operations return opaque session IDs. Later calls page output/results and can terminate the session. Session state is process-local in V0.1 and intentionally not persisted across agent restarts.
 
 ## Repository Shape
-- pps/mcp-server: MCP registration and stdio transport.
+- apps/mcp-server: MCP registration and stdio transport.
 - packages/core: policy, audit, filesystem, process sessions, search sessions, Git helpers, device info.
-- 	ests: behavior tests organized by capability.
+- tests: behavior tests organized by capability.
 - docs: design, implementation plans, security notes, roadmap.
 
 ## Testing and Acceptance

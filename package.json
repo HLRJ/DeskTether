@@ -4,10 +4,12 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.10.0",
+  "engines": { "node": ">=24" },
   "scripts": {
-    "test": "pnpm --filter @desktether/core test",
+    "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "build": "pnpm -r build"
+    "build": "pnpm -r build",
+    "mcp": "pnpm --filter @desktether/mcp-server build && node apps/mcp-server/dist/index.js"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
