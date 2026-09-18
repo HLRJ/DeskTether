@@ -6,9 +6,9 @@
 
 DeskTether 是一个开源、Windows 优先的 MCP 本机桥接项目，用于向 ChatGPT、MCP Client 或其他 AI Agent 提供经过权限约束的本地计算机能力。
 
-当前 V0.2.3 已完成进入浏览器自动化之前的基础能力建设，包括真实路径保护、受限/分页文件读取、递归目录浏览、正则代码搜索、PowerShell Session、安全确认机制以及可轮转的审计日志。
+当前 V0.2.4 在 V0.2.3 基础能力之上，新增了 ChatGPT Web 集成元数据、保守的 MCP 工具安全注解、原生调用文案、App 就绪检查以及公开隐私/接入文档。
 
-> **当前状态：V0.2.3 开发版本。** 本地 MCP 通过 stdio 运行，项目附带的 Windows 脚本可以通过 OpenAI Secure MCP Tunnel 将本机 DeskTether 连接到远程 MCP 客户端，而无需暴露公网入站端口。ChatGPT Web 中的最终写操作能力仍取决于工作区资格和平台支持情况。
+> **当前状态：V0.2.4 开发版本。** 本地 MCP 通过 stdio 运行，项目附带的 Windows 脚本可以通过 OpenAI Secure MCP Tunnel 将本机 DeskTether 连接到远程 MCP 客户端，而无需暴露公网入站端口。DeskTether 现在会发布适合 ChatGPT 识别的工具元数据，但完整 write/modify 能力仍取决于当前套餐和工作区资格。
 
 ## 为什么做 DeskTether
 
@@ -53,6 +53,7 @@ DeskTether MCP Server
 - 只读 Git `status` / `diff` / `log`
 - 本机设备和运行时信息
 - OpenAI Secure MCP Tunnel 安装、诊断、启动和状态检查
+- ChatGPT App Profile、Tool title、MCP 安全注解、原生调用文案、Server instructions 和 readiness doctor
 
 ## MCP 工具
 
@@ -335,7 +336,16 @@ pnpm tunnel:start
 pnpm tunnel:status
 ```
 
-完整配置流程参见 [`docs/secure-mcp-tunnel.md`](docs/secure-mcp-tunnel.md)。
+在 ChatGPT 中创建 App 之前，先运行：
+
+```powershell
+pnpm chatgpt:doctor
+```
+
+健康状态会返回 `"status": "ready"`，并汇总当前 30 个工具及其安全注解。
+
+ChatGPT Developer Mode / App 配置参见 [`docs/chatgpt-app.md`](docs/chatgpt-app.md)，Tunnel 配置参见 [`docs/secure-mcp-tunnel.md`](docs/secure-mcp-tunnel.md)，隐私说明参见 [`PRIVACY.md`](PRIVACY.md)。
+
 ## 配置项
 
 | 环境变量 | 含义 | 默认值 |
@@ -420,6 +430,7 @@ pnpm test
 pnpm test:tunnel
 pnpm typecheck
 pnpm build
+pnpm chatgpt:doctor
 pnpm tunnel:status
 ```
 
@@ -440,7 +451,7 @@ Linux core / Node 24
 Windows / Node 24
 ```
 
-Windows CI 执行全量 Tests、Tunnel integration tests、Typecheck 和 Build；Linux CI 执行 Core tests、Typecheck 和 Build。
+Windows CI 执行全量 Tests、Tunnel integration tests、Typecheck、Build 和 ChatGPT readiness doctor；Linux CI 执行 Core tests、Typecheck 和 Build。
 
 `main` 已设置 Required Status Checks，CI 未通过时不能正常合并 PR。
 ## Roadmap
@@ -450,6 +461,7 @@ Windows CI 执行全量 Tests、Tunnel integration tests、Typecheck 和 Build�
 - **V0.2.1** — 三态权限、一次性确认、Session 增量输出、Audit 2.0、Tunnel doctor/start/status
 - **V0.2.2** — 多文件读取、目录创建、文件移动/元数据、精确文本块编辑、搜索 Session 列表
 - **V0.2.3** — realpath/symlink 防护、分页文件读取、递归目录树、append、目录移动、regex/glob 搜索、Audit 轮转、Context 限制
+- **V0.2.4** — ChatGPT Web App 元数据、MCP 安全注解、原生调用文案、Server instructions、readiness doctor、隐私/接入文档
 - **V0.3** — Chrome DevTools / Browser Automation
 - **V0.4** — Windows Screenshot、Window Discovery、Keyboard/Mouse、UI Automation
 - **V0.5** — Multi-device、Permission Profile、Local Approval UX
@@ -466,8 +478,10 @@ DeskTether/
 ├─ scripts/
 │  └─ tunnel/
 ├─ docs/
+│  ├─ chatgpt-app.md
 │  ├─ secure-mcp-tunnel.md
 │  └─ superpowers/
+├─ PRIVACY.md
 ├─ .env.example
 ├─ package.json
 └─ pnpm-workspace.yaml

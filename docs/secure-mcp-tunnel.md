@@ -1,6 +1,6 @@
 # DeskTether Secure MCP Tunnel
 
-This guide connects the local DeskTether V0.2.3 stdio MCP server to supported ChatGPT custom MCP apps through OpenAI Secure MCP Tunnel.
+This guide connects the local DeskTether V0.2.4 stdio MCP server to supported ChatGPT custom MCP apps through OpenAI Secure MCP Tunnel.
 
 ## Architecture
 
@@ -27,7 +27,7 @@ DeskTether does not open a public HTTP listener. The customer-run `tunnel-client
 
 ## Product prerequisite
 
-As of 2026-09-17, full custom MCP support with write/modify actions is available to ChatGPT Business, Enterprise, and Edu workspaces. A personal Plus workspace cannot attach a private full-MCP PowerShell app, even when the local tunnel is technically ready.
+As of 2026-09-18, full custom MCP support with write/modify actions is available to ChatGPT Business, Enterprise, and Edu workspaces. OpenAI also documents Developer Mode MCP support for Pro read/fetch use cases, but not full write/modify MCP. A personal Plus workspace cannot currently be assumed to attach a private full-MCP PowerShell app even when the local tunnel is technically ready. Verify the current requirements in OpenAI's Developer Mode documentation before deployment: https://help.openai.com/en/articles/12584461-developer-mode-and-mcp-apps-in-chatgpt
 
 ## Local prerequisites
 

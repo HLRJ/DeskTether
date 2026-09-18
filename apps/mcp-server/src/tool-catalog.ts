@@ -1,9 +1,107 @@
 import * as z from "zod/v4";
 
+export interface ToolAnnotations {
+  readOnlyHint: boolean;
+  destructiveHint: boolean;
+  idempotentHint: boolean;
+  openWorldHint: boolean;
+}
+
 export interface ToolDefinition {
   name: string;
+  title: string;
   description: string;
   inputSchema: z.ZodObject;
+  annotations: ToolAnnotations;
+  _meta: Record<string, unknown>;
+}
+
+interface ToolPresentation {
+  title: string;
+  invoking: string;
+  invoked: string;
+}
+
+const TOOL_PRESENTATION: Record<string, ToolPresentation> = {
+  device_info: { title: "Device Information", invoking: "Reading device information...", invoked: "Device information read" },
+  list_directory: { title: "List Directory", invoking: "Listing directory...", invoked: "Directory listed" },
+  read_text_file: { title: "Read Text File", invoking: "Reading file...", invoked: "File read" },
+  write_text_file: { title: "Write Text File", invoking: "Writing file...", invoked: "File written" },
+  read_multiple_files: { title: "Read Multiple Files", invoking: "Reading files...", invoked: "Files read" },
+  create_directory: { title: "Create Directory", invoking: "Creating directory...", invoked: "Directory created" },
+  move_file: { title: "Move File or Directory", invoking: "Moving path...", invoked: "Path moved" },
+  get_file_info: { title: "Get File Information", invoking: "Reading file metadata...", invoked: "File metadata read" },
+  edit_block: { title: "Edit Text Block", invoking: "Editing text block...", invoked: "Text block edited" },
+  start_process: { title: "Start Process", invoking: "Starting process...", invoked: "Process started" },
+  powershell_start: { title: "Start PowerShell", invoking: "Starting PowerShell...", invoked: "PowerShell started" },
+  powershell_read: { title: "Read PowerShell Session", invoking: "Reading PowerShell output...", invoked: "PowerShell output read" },
+  powershell_input: { title: "Write PowerShell Input", invoking: "Sending PowerShell input...", invoked: "PowerShell input sent" },
+  powershell_terminate: { title: "Terminate PowerShell", invoking: "Terminating PowerShell...", invoked: "PowerShell terminated" },
+  powershell_list: { title: "List PowerShell Sessions", invoking: "Listing PowerShell sessions...", invoked: "PowerShell sessions listed" },
+  read_process_output: { title: "Read Process Output", invoking: "Reading process output...", invoked: "Process output read" },
+  write_process_input: { title: "Write Process Input", invoking: "Sending process input...", invoked: "Process input sent" },
+  terminate_process: { title: "Terminate Process Session", invoking: "Terminating process...", invoked: "Process terminated" },
+  list_sessions: { title: "List Process Sessions", invoking: "Listing process sessions...", invoked: "Process sessions listed" },
+  list_processes: { title: "List System Processes", invoking: "Listing system processes...", invoked: "System processes listed" },
+  kill_process: { title: "Kill System Process", invoking: "Terminating system process...", invoked: "System process terminated" },
+  start_search: { title: "Start Search", invoking: "Starting search...", invoked: "Search started" },
+  get_search_results: { title: "Read Search Results", invoking: "Reading search results...", invoked: "Search results read" },
+  stop_search: { title: "Stop Search", invoking: "Stopping search...", invoked: "Search stopped" },
+  list_searches: { title: "List Searches", invoking: "Listing searches...", invoked: "Searches listed" },
+  search_code: { title: "Search Code", invoking: "Searching code...", invoked: "Code search started" },
+  get_recent_activity: { title: "Read Recent Activity", invoking: "Reading recent activity...", invoked: "Recent activity read" },
+  git_status: { title: "Git Status", invoking: "Reading Git status...", invoked: "Git status read" },
+  git_diff: { title: "Git Diff", invoking: "Reading Git diff...", invoked: "Git diff read" },
+  git_log: { title: "Git Log", invoking: "Reading Git history...", invoked: "Git history read" },
+};
+
+const READ_ONLY_TOOLS = new Set([
+  "device_info", "list_directory", "read_text_file", "read_multiple_files", "get_file_info",
+  "powershell_read", "powershell_list", "read_process_output", "list_sessions", "list_processes",
+  "start_search", "get_search_results", "stop_search", "list_searches", "search_code",
+  "get_recent_activity", "git_status", "git_diff", "git_log",
+]);
+
+const DESTRUCTIVE_TOOLS = new Set([
+  "write_text_file", "move_file", "edit_block", "start_process", "powershell_start",
+  "powershell_input", "powershell_terminate", "write_process_input", "terminate_process", "kill_process",
+]);
+
+const IDEMPOTENT_TOOLS = new Set([
+  ...[...READ_ONLY_TOOLS].filter((name) => name !== "start_search" && name !== "search_code"),
+  "create_directory",
+  "stop_search",
+]);
+
+const OPEN_WORLD_TOOLS = new Set([
+  "start_process", "powershell_start", "powershell_input", "write_process_input",
+]);
+
+function decorateTool<T extends { name: string; description: string; inputSchema: z.ZodObject }>(
+  tool: T,
+): ToolDefinition {
+  const presentation = TOOL_PRESENTATION[tool.name];
+  if (!presentation) throw new Error(`Missing ChatGPT presentation metadata for tool: ${tool.name}`);
+
+  const annotations: ToolAnnotations = {
+    readOnlyHint: READ_ONLY_TOOLS.has(tool.name),
+    destructiveHint: DESTRUCTIVE_TOOLS.has(tool.name),
+    idempotentHint: IDEMPOTENT_TOOLS.has(tool.name),
+    openWorldHint: OPEN_WORLD_TOOLS.has(tool.name),
+  };
+
+  return {
+    ...tool,
+    title: presentation.title,
+    annotations,
+    _meta: {
+      "openai/toolInvocation/invoking": presentation.invoking,
+      "openai/toolInvocation/invoked": presentation.invoked,
+      "openai/widgetAccessible": false,
+      "openai/resultCanProduceWidget": false,
+      securitySchemes: [{ type: "noauth" }],
+    },
+  };
 }
 
 const noArgs = z.object({});
@@ -17,7 +115,7 @@ const sessionRead = z.object({
 const cwdOnly = z.object({ cwd: z.string().min(1) });
 
 export function getToolDefinitions(): ToolDefinition[] {
-  return [
+  const tools = [
     { name: "device_info", description: "Get local device and runtime information.", inputSchema: noArgs },
     {
       name: "list_directory",
@@ -173,4 +271,6 @@ export function getToolDefinitions(): ToolDefinition[] {
       inputSchema: z.object({ cwd: z.string().min(1), limit: z.number().int().positive().max(100).optional() }),
     },
   ];
+
+  return tools.map((tool) => decorateTool(tool));
 }
