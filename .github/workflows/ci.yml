@@ -39,6 +39,8 @@ jobs:
         run: pnpm typecheck
       - name: Build
         run: pnpm build
+      - name: ChatGPT readiness
+        run: pnpm chatgpt:doctor
 
   linux-core:
     name: Linux core / Node 24

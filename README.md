@@ -4,9 +4,9 @@
 
 **Securely connect AI agents to your local machine.**
 
-DeskTether is an open-source, Windows-first MCP bridge that exposes carefully scoped local-computer capabilities to AI clients. V0.2.3 completes the pre-browser foundation with canonical path protection, bounded/paged file access, recursive directory inspection, regex code search, and rotating audit activity.
+DeskTether is an open-source, Windows-first MCP bridge that exposes carefully scoped local-computer capabilities to AI clients. V0.2.4 adds ChatGPT Web integration metadata, conservative MCP tool annotations, an app readiness doctor, and public privacy/onboarding documentation on top of the V0.2.3 foundation.
 
-> **Status:** V0.2.3 development release. Local MCP runs over stdio, and the included Windows scripts can attach that stdio server to OpenAI Secure MCP Tunnel without exposing a public inbound port. Final ChatGPT Web write-action use still depends on workspace eligibility.
+> **Status:** V0.2.4 development release. Local MCP runs over stdio, and the included Windows scripts can attach that stdio server to OpenAI Secure MCP Tunnel without exposing a public inbound port. DeskTether now publishes ChatGPT-friendly tool metadata, but full ChatGPT Web write/modify use still depends on current plan/workspace eligibility.
 
 ## Why DeskTether
 
@@ -42,6 +42,7 @@ DeskTether MCP Server
 - Device/runtime information
 - MCP TypeScript SDK v2 over stdio
 - OpenAI Secure MCP Tunnel bootstrap with pinned tunnel-client verification, doctor/start/status commands, PID file, and health probe
+- ChatGPT App profile with tool titles, safety annotations, native invocation metadata, server instructions, readiness validation, and privacy documentation
 
 ## MCP tools
 
@@ -109,7 +110,16 @@ In another terminal, inspect the live local tunnel state without reading or prin
 pnpm tunnel:status
 ```
 
-See [`docs/secure-mcp-tunnel.md`](docs/secure-mcp-tunnel.md) for the complete setup and current ChatGPT plan/workspace requirements.
+Before configuring the app in ChatGPT, run:
+
+```powershell
+pnpm chatgpt:doctor
+```
+
+A healthy build returns `"status": "ready"` and summarizes the 30 discovered tools and their safety annotations.
+
+See [`docs/chatgpt-app.md`](docs/chatgpt-app.md) for ChatGPT Developer Mode/App setup and [`docs/secure-mcp-tunnel.md`](docs/secure-mcp-tunnel.md) for tunnel setup. See [`PRIVACY.md`](PRIVACY.md) for the public privacy note.
+
 ## Configuration
 
 | Variable | Meaning | Default |
@@ -155,6 +165,7 @@ pnpm test
 pnpm test:tunnel
 pnpm typecheck
 pnpm build
+pnpm chatgpt:doctor
 pnpm tunnel:status
 ```
 Core capabilities live in `packages/core`. The MCP transport adapter lives in `apps/mcp-server`. The tunnel scripts live in `scripts/tunnel`. This keeps local-computer logic independent from ChatGPT/tunnel plumbing.
@@ -166,6 +177,7 @@ Core capabilities live in `packages/core`. The MCP transport adapter lives in `a
 - **V0.2.1** — three-state permission engine, one-time confirmation, bounded session streaming, richer audit, tunnel doctor/start/status
 - **V0.2.2** — multi-file reads, directory creation, file move/info, exact block editing, search-session listing
 - **V0.2.3** — realpath/symlink protection, paged file reads, recursive directory trees, append writes, directory moves, regex/glob search, rotating audit activity, context limits
+- **V0.2.4** — ChatGPT Web app metadata, MCP safety annotations, native invocation text, server instructions, readiness doctor, privacy/onboarding docs
 - **V0.3** — Chrome DevTools / browser automation adapter
 - **V0.4** — Windows screenshots, window discovery, keyboard/mouse and UI Automation
 - **V0.5** — multi-device pairing, stronger permission profiles, local approval UX
@@ -182,8 +194,10 @@ DeskTether/
 ├─ scripts/
 │  └─ tunnel/
 ├─ docs/
+│  ├─ chatgpt-app.md
 │  ├─ secure-mcp-tunnel.md
 │  └─ superpowers/
+├─ PRIVACY.md
 ├─ .env.example
 ├─ package.json
 └─ pnpm-workspace.yaml
