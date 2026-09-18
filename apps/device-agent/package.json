@@ -1,0 +1,20 @@
+{
+  "name": "@desktether/device-agent",
+  "version": "0.3.0-dev",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "typecheck": "pnpm --filter @desktether/core build && pnpm --filter @desktether/protocol build && tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@desktether/core": "workspace:*",
+    "@desktether/protocol": "workspace:*",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
+  }
+}
