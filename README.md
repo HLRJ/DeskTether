@@ -1,5 +1,7 @@
 # DeskTether
 
+**English** | [简体中文](README.zh-CN.md)
+
 **Securely connect AI agents to your local machine.**
 
 DeskTether is an open-source, Windows-first MCP bridge that exposes carefully scoped local-computer capabilities to AI clients. V0.2.3 completes the pre-browser foundation with canonical path protection, bounded/paged file access, recursive directory inspection, regex code search, and rotating audit activity.
